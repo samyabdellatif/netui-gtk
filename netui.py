@@ -12,7 +12,6 @@ from netmanage.dhcpc import *
 
 import gi
 import logging
-import sys
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
 from manual_config import ManualConfigWindow
@@ -49,7 +48,6 @@ try:
 except Exception as e:
     logger.error(f"Failed to initialize interface list: {e}")
     print(f"Error: Failed to initialize network interfaces: {e}")
-    sys.exit(1)
     
 class netUImainWindow(Gtk.Window):
     def __init__(self):
