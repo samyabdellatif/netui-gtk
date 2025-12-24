@@ -1,19 +1,15 @@
 #!/bin/bash
+# Build wrapper script for netui-gtk
 
-# Ensure we are in the script's directory
-cd "$(dirname "$0")"
+echo "Running syntax check..."
+# Compile to check for syntax errors, but don't keep the __pycache__
+python3 -m compileall -q .
 
-# Install PyInstaller
-echo "Installing PyInstaller..."
-pip3 install pyinstaller
-
-# Build the standalone executable
-echo "Building netui-gtk..."
-pyinstaller --noconfirm --onefile --windowed \
-    --name "netui-gtk" \
-    --hidden-import="gi" \
-    __main__.py
-
-echo "------------------------------------------------"
-echo "Build Complete!"
-echo "Your standalone executable is located at: dist/netui-gtk"
+if [ $? -eq 0 ]; then
+    echo "Syntax check passed."
+    chmod +x build_deb.sh
+    ./build_deb.sh
+else
+    echo "Syntax check failed. Aborting build."
+    exit 1
+fi

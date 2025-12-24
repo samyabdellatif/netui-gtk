@@ -1,69 +1,71 @@
 #!/bin/bash
-
-# Ensure we are in the script's directory
-cd "$(dirname "$0")"
+set -e
 
 # Configuration
 APP_NAME="netui-gtk"
-VERSION="0.0.1"
-ARCH="amd64"
-DEB_NAME="${APP_NAME}_${VERSION}_${ARCH}"
-BUILD_DIR="dist/deb_build"
+VERSION="1.0.0"
+ARCH="all"
+STAGING_DIR="deb_staging"
+DEB_NAME="${APP_NAME}_${VERSION}_${ARCH}.deb"
 
-# 1. Build the binary if it doesn't exist
-if [ ! -f "dist/$APP_NAME" ]; then
-    echo "Binary not found. Running build.sh..."
-    if [ -f "./build.sh" ]; then
-        chmod +x ./build.sh
-        ./build.sh
-    else
-        echo "Error: build.sh not found!"
-        exit 1
-    fi
-fi
+echo "Starting build process for $APP_NAME..."
 
-# 2. Prepare directory structure
-echo "Creating directory structure..."
-rm -rf "$BUILD_DIR"
-mkdir -p "$BUILD_DIR/DEBIAN"
-mkdir -p "$BUILD_DIR/usr/bin"
-mkdir -p "$BUILD_DIR/usr/share/applications"
-mkdir -p "$BUILD_DIR/usr/share/icons/hicolor/scalable/apps"
+# Clean up previous builds
+rm -rf $STAGING_DIR
+rm -f $DEB_NAME
 
-# 3. Copy files
+# Create directory structure
+mkdir -p $STAGING_DIR/usr/share/$APP_NAME
+mkdir -p $STAGING_DIR/usr/bin
+mkdir -p $STAGING_DIR/usr/share/applications
+mkdir -p $STAGING_DIR/DEBIAN
+
+# Copy application files
+# We only copy necessary source files, excluding build artifacts and git files
 echo "Copying files..."
-cp "dist/$APP_NAME" "$BUILD_DIR/usr/bin/"
-chmod 755 "$BUILD_DIR/usr/bin/$APP_NAME"
+cp netui.py $STAGING_DIR/usr/share/$APP_NAME/
+cp manual_config.py $STAGING_DIR/usr/share/$APP_NAME/
+cp -r netmanage $STAGING_DIR/usr/share/$APP_NAME/
+# Remove __pycache__ directories to minimize package size
+find "$STAGING_DIR" -name "__pycache__" -type d -exec rm -rf {} +
 
-# Check for desktop file, create if missing
-if [ -f "$APP_NAME.desktop" ]; then
-    cp "$APP_NAME.desktop" "$BUILD_DIR/usr/share/applications/"
-else
-    echo "Warning: $APP_NAME.desktop not found. Please create it for full integration."
+# Copy icon if it exists
+if [ -f "iplinkgui.ico" ]; then
+    cp iplinkgui.ico $STAGING_DIR/usr/share/$APP_NAME/
 fi
 
-# Check for icon
-if [ -f "$APP_NAME.svg" ]; then
-    cp "$APP_NAME.svg" "$BUILD_DIR/usr/share/icons/hicolor/scalable/apps/"
-fi
+# Create executable wrapper script
+echo "Creating launcher..."
+cat > $STAGING_DIR/usr/bin/$APP_NAME << EOF
+#!/bin/sh
+cd /usr/share/$APP_NAME
+exec python3 netui.py "\$@"
+EOF
+chmod 755 $STAGING_DIR/usr/bin/$APP_NAME
 
-# 4. Create Control File
+# Calculate installed size (in KB)
+INSTALLED_SIZE=$(du -s $STAGING_DIR/usr | cut -f1)
+
+# Create control file
 echo "Creating control file..."
-cat > "$BUILD_DIR/DEBIAN/control" << EOF
+cat > $STAGING_DIR/DEBIAN/control << EOF
 Package: $APP_NAME
 Version: $VERSION
-Architecture: $ARCH
-Maintainer: Samy Abdellatif <samiahmed086@gmail.com>
-Depends: libgtk-3-0, libgirepository-1.0-1, iproute2
 Section: net
 Priority: optional
-Description: GTK3 GUI for managing network interfaces
- A lightweight, Python-based graphical user interface for managing 
- network interfaces on Linux systems using GTK+ 3.
+Architecture: $ARCH
+Depends: python3, python3-gi, gir1.2-gtk-3.0, net-tools
+Maintainer: Samy Abdellatif
+Installed-Size: $INSTALLED_SIZE
+Description: Network Interface Management GUI
+ A lightweight GTK+ utility to manage network interfaces, routes, and DHCP.
 EOF
 
-# 5. Build .deb
+# Build the package
 echo "Building .deb package..."
-dpkg-deb --build "$BUILD_DIR" "dist/${DEB_NAME}.deb"
+dpkg-deb --build $STAGING_DIR $DEB_NAME
 
-echo "Done! Package saved to dist/${DEB_NAME}.deb"
+# Cleanup staging
+rm -rf $STAGING_DIR
+
+echo "Build complete: $DEB_NAME"
