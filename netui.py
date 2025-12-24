@@ -11,14 +11,10 @@ from netmanage.route import *
 from netmanage.dhcpc import *
 
 import gi
-import os
-import subprocess
 import logging
 import sys
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
-from subprocess import call,run,STDOUT
-from os import listdir
 from manual_config import ManualConfigWindow
 
 # Configure logging
