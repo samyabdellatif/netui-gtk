@@ -27,27 +27,15 @@ A lightweight, Python-based graphical user interface for managing network interf
 *   **Configuration Persistence**: Saves window size and preferences using XDG standards.
 *   **Desktop Integration**: Proper .desktop file for application menus.
 
-For complete feature list, see [NEW_FEATURES.md](NEW_FEATURES.md).
-
-## Requirements
-
-*   Linux with Python 3.x
-*   GTK+ 3.0 & PyGObject (`python3-gi`)
-*   `iproute2` (provides `ip` command)
-*   DHCP client: `dhclient` (isc-dhcp-client), `dhcpcd`, or `udhcpc`
+---
 
 ## Installation
 
-### Quick Install (Recommended)
-
-For GUI and CLI usage with desktop integration:
+### Quick Install (From Source)
 
 ```bash
 git clone https://github.com/samyabdellatif/netui-gtk
 cd netui-gtk
-
-# Install dependencies (Debian/Ubuntu example)
-sudo apt install python3-gi python3-gi-cairo gir1.2-gtk-3.0 iproute2 isc-dhcp-client
 
 # Install system-wide (recommended)
 sudo ./install.sh
@@ -60,92 +48,111 @@ After installation:
 - **GUI**: Launch from your application menu (System → NetUI GTK)
 - **CLI**: Run `netui-gtk` from terminal
 
-For detailed usage instructions, see [USER_GUIDE.md](USER_GUIDE.md).
+---
 
-### Safety Check
+### Installing the .deb Package
 
-Before using netui-gtk, check for conflicts with system services:
+Build the .deb package first:
 
 ```bash
-./safety-check.sh
+cd netui-gtk
+sudo ./build_deb.sh
 ```
 
-This will detect NetworkManager or systemd-networkd conflicts and offer to stop them safely.
+This produces `netui-gtk_1.0.0_all.deb` in the project root.
 
-### Uninstall
+Then install using your distribution's package manager:
 
+#### Debian / Ubuntu / Linux Mint / Kali
 ```bash
-# Uninstall system-wide installation
-sudo ./uninstall.sh
+# Install
+sudo apt install ./netui-gtk_1.0.0_all.deb
 
-# Or uninstall user installation
-./uninstall.sh
+# Or with dpkg directly
+sudo dpkg -i netui-gtk_1.0.0_all.deb
+sudo apt install -f  # Fix any missing dependencies
+```
+
+#### Fedora / RHEL / CentOS (with alien)
+```bash
+# Install alien to convert .deb to .rpm
+sudo dnf install alien
+sudo alien -r netui-gtk_1.0.0_all.deb
+sudo rpm -ivh netui-gtk-1.0.0-2.noarch.rpm
+```
+
+#### Arch Linux / Manjaro (with debtap)
+```bash
+# Install debtap
+yay -S debtap
+# Or: sudo pacman -S debtap (if in community repo)
+
+# Convert and install
+sudo debtap -u
+debtap netui-gtk_1.0.0_all.deb  # Answer prompts
+sudo pacman -U netui-gtk-1.0.0-1-any.pkg.tar.zst
+```
+
+#### openSUSE
+```bash
+# Install dpkg and convert
+sudo zypper install dpkg
+sudo dpkg -i netui-gtk_1.0.0_all.deb
+sudo zypper install -f  # Fix dependencies
 ```
 
 ---
 
-## Usage
+### Uninstalling the .deb Package
 
-### GUI Mode
-Launch from application menu or run `netui-gtk` from terminal.
-
-### CLI Mode
-
-Check system dependencies:
+#### Debian / Ubuntu / Linux Mint / Kali
 ```bash
-netui-gtk --check
+sudo apt remove netui-gtk
+# Or purge (removes config files too):
+sudo apt purge netui-gtk
 ```
 
-List network interfaces:
+#### Fedora / RHEL / CentOS (if installed via alien/rpm)
 ```bash
-netui-gtk --list
+sudo rpm -e netui-gtk
 ```
 
-Show version:
+#### Arch Linux / Manjaro (if installed via debtap)
 ```bash
-netui-gtk --version
+sudo pacman -R netui-gtk
 ```
 
-For detailed usage, see [USER_GUIDE.md](USER_GUIDE.md).
+#### openSUSE
+```bash
+sudo zypper remove netui-gtk
+```
+
+#### Cleanup any leftover files
+```bash
+# Remove configuration (optional)
+rm -rf ~/.config/netui-gtk
+
+# Remove desktop file (if leftover)
+rm -f ~/.local/share/applications/netui-gtk.desktop
+```
 
 ---
 
-## Uninstallation
-
-To remove NetUI-GTK from your system:
-
-```bash
-# Using quick wizard (recommended)
-./quick-install.sh
-# Choose option 2) Uninstall
-
-# Or directly
-sudo ./uninstall.sh         # For system-wide install
-./uninstall.sh              # For user install
-
-# Or using Makefile
-sudo make uninstall         # System-wide
-make uninstall-user         # User install
-```
-
-The uninstall process will:
-- Remove all installed files
-- Offer to remove configuration files
-- Clean up cache files
-- Update desktop database
-
-For complete uninstallation guide, see [UNINSTALL.md](UNINSTALL.md).
-
----
-
-### Alternative: Run from Source (Development)
+### Run from Source (Development)
 
 ```bash
 git clone https://github.com/samyabdellatif/netui-gtk
 cd netui-gtk
 
-# Install dependencies (Debian/Ubuntu example)
+# Install dependencies (varies by distro)
+# Debian/Ubuntu:
 sudo apt install python3-gi python3-gi-cairo gir1.2-gtk-3.0 iproute2 isc-dhcp-client
+
+# Arch:
+sudo pacman -S python-gobject gtk3 iproute2 dhclient
+
+# Fedora:
+sudo dnf install python3-gobject gtk3 iproute dhclient
 
 # Run directly
 sudo python3 __main__.py
@@ -156,46 +163,53 @@ python3 __main__.py --list   # List interfaces
 python3 __main__.py --version
 ```
 
-### Method 2: Build Standalone Binary (Universal)
-Create a single executable file that runs on most Linux distributions (Fedora, Arch, etc.) without requiring Python installation.
+---
 
-1.  **Install PyInstaller:**
-    ```bash
-    pip3 install pyinstaller
-    ```
+### Build Wheel Package (pip installable)
 
-2.  **Build the binary:**
-    ```bash
-    chmod +x netui-gtk/build.sh
-    ./netui-gtk/build.sh
-    ```
-    The executable will be located in `netui-gtk/dist/netui-gtk`.
+```bash
+python3 -m build --wheel --outdir dist/
+pip install dist/netui_gtk-1.0.0-py3-none-any.whl
+```
 
-### Method 3: Build Debian Package (.deb)
-For native installation on Debian, Ubuntu, Linux Mint, and Kali Linux.
+---
 
-1.  **Run the build script:**
-    ```bash
-    chmod +x netui-gtk/build_deb.sh
-    ./netui-gtk/build_deb.sh
-    ```
+## Safety Check
 
-2.  **Install the package:**
-    ```bash
-    sudo apt install ./netui-gtk/dist/netui-gtk_*.deb
-    ```
+Before using netui-gtk, check for conflicts with system services:
+
+```bash
+./safety-check.sh
+```
+
+This will detect NetworkManager or systemd-networkd conflicts and offer to stop them safely.
+
+---
+
+## Usage
+
+### GUI Mode
+Launch from application menu or run `netui-gtk` from terminal.
+
+### CLI Mode
+
+```bash
+netui-gtk --check     # Check system dependencies
+netui-gtk --list      # List network interfaces
+netui-gtk --version   # Show version
+```
 
 ---
 
 ## Documentation
 
-- **[INSTALL.md](INSTALL.md)** - Complete installation guide with troubleshooting
-- **[UNINSTALL.md](UNINSTALL.md)** - Complete uninstallation guide
-- **[USER_GUIDE.md](USER_GUIDE.md)** - Detailed usage instructions
-- **[NETWORK_BACKEND_INTEGRATION.md](NETWORK_BACKEND_INTEGRATION.md)** - NetworkManager/systemd-networkd integration
-- **[NEW_FEATURES.md](NEW_FEATURES.md)** - Feature list and capabilities
-- **[SAFETY_FIXES.md](SAFETY_FIXES.md)** - Security and safety improvements
-- **[IMPROVEMENTS.md](IMPROVEMENTS.md)** - Technical improvements documentation
+- **[docs/INSTALL.md](docs/INSTALL.md)** - Complete installation guide with troubleshooting
+- **[docs/UNINSTALL.md](docs/UNINSTALL.md)** - Complete uninstallation guide
+- **[docs/USER_GUIDE.md](docs/USER_GUIDE.md)** - Detailed usage instructions
+- **[docs/NETWORK_BACKEND_INTEGRATION.md](docs/NETWORK_BACKEND_INTEGRATION.md)** - NetworkManager/systemd-networkd integration
+- **[docs/NEW_FEATURES.md](docs/NEW_FEATURES.md)** - Feature list and capabilities
+- **[docs/SAFETY_FIXES.md](docs/SAFETY_FIXES.md)** - Security and safety improvements
+- **[docs/IMPROVEMENTS.md](docs/IMPROVEMENTS.md)** - Technical improvements documentation
 
 ---
 

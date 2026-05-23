@@ -14,7 +14,7 @@ setup(
     url="https://github.com/samyabdellatif/netui-gtk",
     license="MIT",
     packages=find_packages(),
-    py_modules=["netui", "manual_config", "config"],
+    py_modules=["netui", "manual_config", "advanced_config", "config", "__main__"],
     # We rely on system packages (python3-gi, etc.) to minimize size
     install_requires=[],
     python_requires=">=3.6",

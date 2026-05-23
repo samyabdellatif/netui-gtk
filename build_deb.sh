@@ -23,8 +23,12 @@ mkdir -p $STAGING_DIR/DEBIAN
 # Copy application files
 # We only copy necessary source files, excluding build artifacts and git files
 echo "Copying files..."
+cp __main__.py $STAGING_DIR/usr/share/$APP_NAME/
+cp __init__.py $STAGING_DIR/usr/share/$APP_NAME/
 cp netui.py $STAGING_DIR/usr/share/$APP_NAME/
+cp config.py $STAGING_DIR/usr/share/$APP_NAME/
 cp manual_config.py $STAGING_DIR/usr/share/$APP_NAME/
+cp advanced_config.py $STAGING_DIR/usr/share/$APP_NAME/
 cp -r netmanage $STAGING_DIR/usr/share/$APP_NAME/
 # Remove __pycache__ directories to minimize package size
 find "$STAGING_DIR" -name "__pycache__" -type d -exec rm -rf {} +
@@ -39,7 +43,7 @@ echo "Creating launcher..."
 cat > $STAGING_DIR/usr/bin/$APP_NAME << EOF
 #!/bin/sh
 cd /usr/share/$APP_NAME
-exec python3 netui.py "\$@"
+exec python3 -m __main__ "\$@"
 EOF
 chmod 755 $STAGING_DIR/usr/bin/$APP_NAME
 
@@ -54,7 +58,7 @@ Version: $VERSION
 Section: net
 Priority: optional
 Architecture: $ARCH
-Depends: python3, python3-gi, gir1.2-gtk-3.0, net-tools
+Depends: python3, python3-gi, gir1.2-gtk-3.0, iproute2
 Maintainer: Samy Abdellatif
 Installed-Size: $INSTALLED_SIZE
 Description: Network Interface Management GUI
