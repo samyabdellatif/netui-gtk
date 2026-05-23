@@ -437,13 +437,21 @@ def list_ifs(physical=True):
 
 def init():
     ''' Initialize the library '''
-    globals()["sock"] = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    globals()["sockfd"] = globals()["sock"].fileno()
+    try:
+        globals()["sock"] = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        globals()["sockfd"] = globals()["sock"].fileno()
+    except OSError as e:
+        # Socket creation might fail in restricted environments
+        import sys
+        print(f"Warning: Failed to initialize network socket: {e}", file=sys.stderr)
+        globals()["sock"] = None
+        globals()["sockfd"] = None
 
 
 def shutdown():
     ''' Shut down the library '''
-    globals()["sock"].close()
+    if globals().get("sock"):
+        globals()["sock"].close()
     globals()["sock"] = None
     globals()["sockfd"] = None
 
