@@ -9,6 +9,14 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def _netmask_to_cidr(netmask):
+    """Convert netmask to CIDR notation (e.g., 255.255.255.0 -> 24)."""
+    try:
+        return sum([bin(int(x)).count('1') for x in netmask.split('.')])
+    except (ValueError, AttributeError):
+        return 24  # Default to /24
+
+
 class NetworkService:
     """Unified network service manager"""
     
@@ -126,7 +134,7 @@ class NetworkManagerBackend:
             )
             
             # Calculate CIDR from netmask
-            cidr = NetworkManagerBackend._netmask_to_cidr(netmask)
+            cidr = _netmask_to_cidr(netmask)
             ip_with_cidr = f"{ip_address}/{cidr}"
             
             # Build nmcli command
@@ -168,13 +176,6 @@ class NetworkManagerBackend:
             logger.error(f"NetworkManager static IP error: {e}")
             return False, str(e)
     
-    @staticmethod
-    def _netmask_to_cidr(netmask):
-        """Convert netmask to CIDR notation"""
-        try:
-            return sum([bin(int(x)).count('1') for x in netmask.split('.')])
-        except:
-            return 24  # Default to /24
 
 
 class SystemdNetworkdBackend:
@@ -227,7 +228,7 @@ DHCP=yes
         try:
             network_file = f"/etc/systemd/network/50-{interface_name}.network"
             
-            cidr = SystemdNetworkdBackend._netmask_to_cidr(netmask)
+            cidr = _netmask_to_cidr(netmask)
             
             network_config = f"""[Match]
 Name={interface_name}
@@ -270,13 +271,6 @@ Address={ip_address}/{cidr}
             logger.error(f"systemd-networkd error: {e}")
             return False, str(e)
     
-    @staticmethod
-    def _netmask_to_cidr(netmask):
-        """Convert netmask to CIDR notation"""
-        try:
-            return sum([bin(int(x)).count('1') for x in netmask.split('.')])
-        except:
-            return 24
 
 
 def connect_interface_dhcp(interface_name):

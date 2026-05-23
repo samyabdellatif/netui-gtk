@@ -15,7 +15,7 @@ from config import get_config
 import gi
 import logging
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk
+from gi.repository import Gtk, GLib
 from manual_config import ManualConfigWindow
 from advanced_config import AdvancedConfigWindow
 
@@ -23,40 +23,24 @@ from advanced_config import AdvancedConfigWindow
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-try:
-    logger.info("Initializing interface list...")
-    intF_list = list_ifs()
-    logger.info(f"Found {len(intF_list)} interfaces")
-    
-    for iface in intF_list:
-        try:
-            if iface.is_up():
-                # Note: The automatic shutdown of eno1 interface has been removed
-                # as it requires root permissions and causes startup failures
-                ip_addr = iface.get_ip()
-                mac_addr = iface.get_mac()
-                logger.info(f"Interface {iface.name} is UP - IP: {ip_addr}, MAC: {mac_addr}")
-                print(f"{iface.name} interface is UP , IP ADDRESS: {ip_addr}")
-            else:
-                logger.info(f"Interface {iface.name} is DOWN")
-                print(f"{iface.name} interface is DOWN")
-        except Exception as e:
-            logger.error(f"Error checking interface {iface.name}: {e}")
-            print(f"Error checking interface {iface.name}: {e}")
-
-    total_iface = len(intF_list)
-    logger.info(f"Total number of interfaces installed: {total_iface}")
-    print(f"total number of interfaces installed : {total_iface}")
-    
-except Exception as e:
-    logger.error(f"Failed to initialize interface list: {e}")
-    print(f"Error: Failed to initialize network interfaces: {e}")
-    
 class netUImainWindow(Gtk.Window):
     def __init__(self):
         Gtk.Window.__init__(self, title="network interfaces")
         # Load configuration
         self.config = get_config()
+        
+        # Initialize interface list (moved from module-level to avoid import side effects)
+        self.intF_list = []
+        try:
+            self.intF_list = list_ifs()
+            logger.info(f"Found {len(self.intF_list)} interfaces")
+            for iface in self.intF_list:
+                if iface.is_up():
+                    logger.info(f"Interface {iface.name} is UP - IP: {iface.get_ip()}")
+                else:
+                    logger.info(f"Interface {iface.name} is DOWN")
+        except Exception as e:
+            logger.error(f"Failed to initialize interface list: {e}")
         
         # setting and icon and border
         # self.set_default_icon_from_file("iplinkgui.ico")
@@ -69,8 +53,8 @@ class netUImainWindow(Gtk.Window):
         self.set_position(Gtk.WindowPosition.CENTER)
         self.set_keep_above(True)
         
-        # Save window size on destroy
-        self.connect("destroy", self.on_window_destroy)
+        # Save window size before closing (using delete-event to ensure size is still valid)
+        self.connect("delete-event", self.on_window_delete)
         
         try:
             self.create_ui()
@@ -79,15 +63,18 @@ class netUImainWindow(Gtk.Window):
             logger.error(f"Failed to create UI: {e}")
             self.show_error_dialog("UI Creation Error", f"Failed to create user interface: {e}")
     
-    def on_window_destroy(self, widget):
-        """Save window size before closing."""
+    def on_window_delete(self, widget, event):
+        """Save window size before closing and quit."""
         try:
             width, height = self.get_size()
-            self.config.set('window_width', width)
-            self.config.set('window_height', height)
-            logger.info(f"Window size saved: {width}x{height}")
+            if width > 0 and height > 0:
+                self.config.set('window_width', width)
+                self.config.set('window_height', height)
+                logger.info(f"Window size saved: {width}x{height}")
         except Exception as e:
             logger.error(f"Failed to save window size: {e}")
+        Gtk.main_quit()
+        return False  # Allow the window to close
         
     def show_error_dialog(self, title, message):
         """Display an error dialog to user"""
@@ -115,40 +102,6 @@ class netUImainWindow(Gtk.Window):
         dialog.run()
         dialog.destroy()
     
-    def _check_interface_managed(self, interface_name):
-        """Check if interface is managed by NetworkManager or systemd-networkd."""
-        import subprocess
-        
-        # Check NetworkManager
-        try:
-            result = subprocess.run(
-                ['nmcli', 'device', 'status'],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            if result.returncode == 0:
-                for line in result.stdout.split('\n'):
-                    if interface_name in line and 'unmanaged' not in line.lower():
-                        return True
-        except (subprocess.TimeoutExpired, FileNotFoundError):
-            pass
-        
-        # Check systemd-networkd
-        try:
-            result = subprocess.run(
-                ['networkctl', 'status', interface_name],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            if result.returncode == 0 and 'configured' in result.stdout.lower():
-                return True
-        except (subprocess.TimeoutExpired, FileNotFoundError):
-            pass
-        
-        return False
-        
     def create_ui(self):
         """Create the main user interface"""
         #defining listbox
@@ -186,9 +139,9 @@ class netUImainWindow(Gtk.Window):
         lbox.add(row)
 
         # Iterate through interfaces and add one row for each 
-        for iface_index in range(len(intF_list)):
+        for iface_index in range(len(self.intF_list)):
             try:
-                interface = intF_list[iface_index]
+                interface = self.intF_list[iface_index]
                 
                 # Get interface details with error handling
                 try:
@@ -295,7 +248,7 @@ class netUImainWindow(Gtk.Window):
     def on_UpDown_activated(self, switch, gparam, i):
         """Handle interface up/down switch activation"""
         try:
-            interface = intF_list[i]
+            interface = self.intF_list[i]
             interface_name = interface.name
             
             if switch.get_active():
@@ -342,103 +295,125 @@ class netUImainWindow(Gtk.Window):
             logger.error(f"Unexpected error in on_UpDown_activated: {e}")
             self.show_error_dialog("Unexpected Error", f"An unexpected error occurred: {e}")
 
+    def _on_connect_complete(self, result_tuple, interface, switch, manager):
+        """Called on GTK main thread when async connect completes."""
+        success, message = result_tuple
+        if success:
+            logger.info(f"Connect succeeded for {interface.name}, polling for IP...")
+            self._poll_for_ip(interface, switch, 15)
+        else:
+            logger.error(f"Failed to connect {interface.name}: {message}")
+            self.show_error_dialog("Connection Error", f"Failed to connect {interface.name}:\n{message}")
+            switch.set_active(False)
+
+    def _on_disconnect_complete(self, result_tuple, interface, switch):
+        """Called on GTK main thread when async disconnect completes."""
+        success, message = result_tuple
+        if success:
+            logger.info(f"Disconnect succeeded for {interface.name}, polling IP removal...")
+            self._poll_for_disconnect(interface, switch, 10)
+        else:
+            logger.error(f"Failed to disconnect {interface.name}: {message}")
+            self.show_error_dialog("Disconnection Error", f"Failed to disconnect {interface.name}:\n{message}")
+            switch.set_active(True)
+
     def on_ConDiscon_activated(self, switch, gparam, i):
-        """Handle interface connect/disconnect switch activation"""
+        """Handle interface connect/disconnect switch activation (non-blocking)."""
         try:
-            interface = intF_list[i]
+            interface = self.intF_list[i]
             interface_name = interface.name
-            
-            if switch.get_active():
-                # Detect which service manages the interface
-                manager = NetworkService.detect_interface_manager(interface_name)
-                logger.info(f"Interface {interface_name} is managed by: {manager}")
-                
-                # Try to connect (DHCP) using appropriate backend
-                try:
-                    logger.info(f"Attempting to connect {interface_name} via DHCP")
-                    
-                    # Use unified connection function that auto-detects backend
-                    success, message = connect_interface_dhcp(interface_name)
-                    
-                    if success:
-                        # Verify connection
-                        import time
-                        time.sleep(1)  # Give time for IP assignment
-                        new_ip = interface.get_ip()
-                        
-                        if new_ip and str(new_ip) != "None":
-                            backend_info = f" (via {manager})" if manager != 'manual' else ""
-                            logger.info(f"Successfully connected {interface_name} with IP: {new_ip}{backend_info}")
-                            self.show_info_dialog(
-                                "Connection Successful", 
-                                f"{interface_name} connected successfully{backend_info}\nIP: {new_ip}"
-                            )
-                        else:
-                            logger.warning(f"Connection initiated but waiting for IP assignment on {interface_name}")
-                            self.show_info_dialog(
-                                "Connection Started",
-                                f"{interface_name} connection initiated.\n{message}"
-                            )
-                    else:
-                        logger.error(f"Failed to connect {interface_name}: {message}")
-                        self.show_error_dialog("Connection Error", f"Failed to connect {interface_name}:\n{message}")
-                        switch.set_active(False)  # Revert switch
-                        
-                except PermissionError:
-                    logger.error(f"Permission denied when connecting {interface_name}")
-                    self.show_error_dialog("Permission Error", f"Failed to connect {interface_name}: Permission denied. Please run as root or use sudo.")
-                    switch.set_active(False)  # Revert switch
-                except Exception as e:
-                    logger.error(f"Failed to connect {interface_name}: {e}")
-                    self.show_error_dialog("Connection Error", f"Failed to connect {interface_name}: {e}")
-                    switch.set_active(False)  # Revert switch
-            else:
-                # Try to disconnect (release IP)
-                try:
-                    logger.info(f"Attempting to disconnect {interface_name}")
-                    
-                    # Use unified disconnect function
-                    success, message = disconnect_interface(interface_name)
-                    
-                    if success:
-                        logger.info(f"Successfully disconnected {interface_name}: {message}")
-                        
-                        # Verify disconnection
-                        import time
-                        time.sleep(0.5)  # Give time for IP to be cleared
-                        new_ip = interface.get_ip()
-                        
-                        if new_ip and str(new_ip) != "None":
-                            logger.warning(f"Interface still has IP after disconnect: {new_ip}")
-                            self.show_info_dialog(
-                                "Disconnection Partial", 
-                                f"{interface_name} disconnected but may still have an IP.\nTry toggling the Status switch."
-                            )
-                        else:
-                            self.show_info_dialog(
-                                "Disconnection Successful", 
-                                f"{interface_name} has been disconnected successfully."
-                            )
-                    else:
-                        logger.error(f"Failed to disconnect {interface_name}: {message}")
-                        self.show_error_dialog(
-                            "Disconnection Error", 
-                            f"Failed to disconnect {interface_name}:\n{message}"
-                        )
-                        switch.set_active(True)  # Revert switch
-                    
-                except PermissionError:
-                    logger.error(f"Permission denied when disconnecting {interface_name}")
-                    self.show_error_dialog("Permission Error", f"Failed to disconnect {interface_name}: Permission denied. Please run as root or use sudo.")
-                    switch.set_active(True)  # Revert switch
-                except Exception as e:
-                    logger.error(f"Failed to disconnect {interface_name}: {e}")
-                    self.show_error_dialog("Disconnection Error", f"Failed to disconnect {interface_name}: {e}")
-                    switch.set_active(True)  # Revert switch
-                    
         except IndexError:
             logger.error(f"Invalid interface index: {i}")
             self.show_error_dialog("Interface Error", f"Invalid interface index: {i}")
+            return
+        
+        if switch.get_active():
+            # Connect using async worker to avoid GUI freeze
+            manager = NetworkService.detect_interface_manager(interface_name)
+            logger.info(f"Interface {interface_name} is managed by: {manager}")
+            logger.info(f"Connecting {interface_name} via DHCP (async)...")
+            
+            from netmanage.async_worker import AsyncWorker
+            AsyncWorker.run_async(
+                connect_interface_dhcp,
+                lambda success_data, iface=interface, sw=switch, mgr=manager:
+                    self._on_connect_complete(success_data, iface, sw, mgr),
+                interface_name=interface_name
+            )
+        else:
+            # Disconnect using async worker to avoid GUI freeze
+            logger.info(f"Disconnecting {interface_name} (async)...")
+            
+            from netmanage.async_worker import AsyncWorker
+            AsyncWorker.run_async(
+                disconnect_interface,
+                lambda success_data, iface=interface, sw=switch:
+                    self._on_disconnect_complete(success_data, iface, sw),
+                interface_name=interface_name
+            )
+
+    def _poll_for_ip(self, interface, switch, max_attempts=15):
+        """Poll for IP assignment without blocking the GUI."""
+        self._poll_count = 0
+        self._poll_max = max_attempts
+        self._poll_interface = interface
+        self._poll_switch = switch
+        GLib.timeout_add(1000, self._poll_check_ip)
+
+    def _poll_check_ip(self):
+        """Called every second to check if IP has been assigned."""
+        self._poll_count += 1
+        try:
+            new_ip = self._poll_interface.get_ip()
+            if new_ip and str(new_ip) != "None":
+                manager = NetworkService.detect_interface_manager(self._poll_interface.name)
+                backend_info = f" (via {manager})" if manager != 'manual' else ""
+                logger.info(f"Connected {self._poll_interface.name} with IP: {new_ip}{backend_info}")
+                self.show_info_dialog(
+                    "Connection Successful",
+                    f"{self._poll_interface.name} connected successfully{backend_info}\nIP: {new_ip}"
+                )
+                return False
         except Exception as e:
-            logger.error(f"Unexpected error in on_ConDiscon_activated: {e}")
-            self.show_error_dialog("Unexpected Error", f"An unexpected error occurred: {e}")
+            logger.error(f"Error checking IP: {e}")
+
+        if self._poll_count >= self._poll_max:
+            logger.warning(f"IP not assigned after {self._poll_max} seconds")
+            self.show_info_dialog(
+                "Connection Started",
+                f"{self._poll_interface.name} connection initiated.\nIP assignment may still be in progress."
+            )
+            return False
+        return True
+
+    def _poll_for_disconnect(self, interface, switch, max_attempts=10):
+        """Poll for IP removal without blocking the GUI."""
+        self._disconnect_count = 0
+        self._disconnect_max = max_attempts
+        self._disconnect_interface = interface
+        self._disconnect_switch = switch
+        GLib.timeout_add(500, self._poll_disconnect_check)
+
+    def _poll_disconnect_check(self):
+        """Called every 0.5 seconds to check if IP has been cleared."""
+        self._disconnect_count += 1
+        try:
+            new_ip = self._disconnect_interface.get_ip()
+            if not new_ip or str(new_ip) == "None":
+                logger.info(f"Disconnected {self._disconnect_interface.name}")
+                self.show_info_dialog(
+                    "Disconnection Successful",
+                    f"{self._disconnect_interface.name} has been disconnected successfully."
+                )
+                return False
+        except Exception as e:
+            logger.error(f"Error checking IP: {e}")
+
+        if self._disconnect_count >= self._disconnect_max:
+            logger.warning(f"IP not cleared after {self._disconnect_max * 0.5} seconds")
+            self.show_info_dialog(
+                "Disconnection Partial",
+                f"{self._disconnect_interface.name} disconnected but may still have an IP.\nTry toggling the Status switch."
+            )
+            return False
+        return True
