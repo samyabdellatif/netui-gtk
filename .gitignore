@@ -1,2 +1,8 @@
 build/
-distro/
+dist/
+docs/
+*.egg-info/
+__pycache__/
+*.pyc
+.venv/
+.vscode/
