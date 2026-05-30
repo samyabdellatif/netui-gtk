@@ -50,94 +50,6 @@ After installation:
 
 ---
 
-### Installing the .deb Package
-
-Build the .deb package first:
-
-```bash
-cd netui-gtk
-sudo ./build_deb.sh
-```
-
-This produces `netui-gtk_1.0.0_all.deb` in the project root.
-
-Then install using your distribution's package manager:
-
-#### Debian / Ubuntu / Linux Mint / Kali
-```bash
-# Install
-sudo apt install ./netui-gtk_1.0.0_all.deb
-
-# Or with dpkg directly
-sudo dpkg -i netui-gtk_1.0.0_all.deb
-sudo apt install -f  # Fix any missing dependencies
-```
-
-#### Fedora / RHEL / CentOS (with alien)
-```bash
-# Install alien to convert .deb to .rpm
-sudo dnf install alien
-sudo alien -r netui-gtk_1.0.0_all.deb
-sudo rpm -ivh netui-gtk-1.0.0-2.noarch.rpm
-```
-
-#### Arch Linux / Manjaro (with debtap)
-```bash
-# Install debtap
-yay -S debtap
-# Or: sudo pacman -S debtap (if in community repo)
-
-# Convert and install
-sudo debtap -u
-debtap netui-gtk_1.0.0_all.deb  # Answer prompts
-sudo pacman -U netui-gtk-1.0.0-1-any.pkg.tar.zst
-```
-
-#### openSUSE
-```bash
-# Install dpkg and convert
-sudo zypper install dpkg
-sudo dpkg -i netui-gtk_1.0.0_all.deb
-sudo zypper install -f  # Fix dependencies
-```
-
----
-
-### Uninstalling the .deb Package
-
-#### Debian / Ubuntu / Linux Mint / Kali
-```bash
-sudo apt remove netui-gtk
-# Or purge (removes config files too):
-sudo apt purge netui-gtk
-```
-
-#### Fedora / RHEL / CentOS (if installed via alien/rpm)
-```bash
-sudo rpm -e netui-gtk
-```
-
-#### Arch Linux / Manjaro (if installed via debtap)
-```bash
-sudo pacman -R netui-gtk
-```
-
-#### openSUSE
-```bash
-sudo zypper remove netui-gtk
-```
-
-#### Cleanup any leftover files
-```bash
-# Remove configuration (optional)
-rm -rf ~/.config/netui-gtk
-
-# Remove desktop file (if leftover)
-rm -f ~/.local/share/applications/netui-gtk.desktop
-```
-
----
-
 ### Run from Source (Development)
 
 ```bash
@@ -162,16 +74,6 @@ python3 __main__.py --check  # Check dependencies
 python3 __main__.py --list   # List interfaces
 python3 __main__.py --version
 ```
-
----
-
-### Build Wheel Package (pip installable)
-
-```bash
-python3 -m build --wheel --outdir dist/
-pip install dist/netui_gtk-1.0.0-py3-none-any.whl
-```
-
 ---
 
 ## Safety Check
@@ -198,19 +100,6 @@ netui-gtk --check     # Check system dependencies
 netui-gtk --list      # List network interfaces
 netui-gtk --version   # Show version
 ```
-
----
-
-## Documentation
-
-- **[docs/INSTALL.md](docs/INSTALL.md)** - Complete installation guide with troubleshooting
-- **[docs/UNINSTALL.md](docs/UNINSTALL.md)** - Complete uninstallation guide
-- **[docs/USER_GUIDE.md](docs/USER_GUIDE.md)** - Detailed usage instructions
-- **[docs/NETWORK_BACKEND_INTEGRATION.md](docs/NETWORK_BACKEND_INTEGRATION.md)** - NetworkManager/systemd-networkd integration
-- **[docs/NEW_FEATURES.md](docs/NEW_FEATURES.md)** - Feature list and capabilities
-- **[docs/SAFETY_FIXES.md](docs/SAFETY_FIXES.md)** - Security and safety improvements
-- **[docs/IMPROVEMENTS.md](docs/IMPROVEMENTS.md)** - Technical improvements documentation
-
 ---
 
 ## License
