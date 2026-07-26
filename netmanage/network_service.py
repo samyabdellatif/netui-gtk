@@ -5,11 +5,14 @@ Provides unified interface for managing network interfaces through different bac
 
 import subprocess
 import logging
+import os
+import shutil
+import time
 
 logger = logging.getLogger(__name__)
 
 
-def _netmask_to_cidr(netmask):
+def _netmask_to_cidr(netmask: str) -> int:
     """Convert netmask to CIDR notation (e.g., 255.255.255.0 -> 24)."""
     try:
         return sum([bin(int(x)).count('1') for x in netmask.split('.')])
@@ -21,7 +24,7 @@ class NetworkService:
     """Unified network service manager"""
     
     @staticmethod
-    def detect_interface_manager(interface_name):
+    def detect_interface_manager(interface_name: str) -> str:
         """
         Detect which service manages an interface.
         Returns: 'networkmanager', 'systemd-networkd', 'manual', or None
@@ -30,16 +33,15 @@ class NetworkService:
         try:
             result = subprocess.run(
                 ['nmcli', 'device', 'status'],
-                capture_output=True,
-                text=True,
-                timeout=5
+                capture_output=True, text=True, timeout=5
             )
             if result.returncode == 0:
                 for line in result.stdout.split('\n'):
                     if interface_name in line:
-                        if 'unmanaged' in line.lower():
+                        line_lower = line.lower()
+                        if 'unmanaged' in line_lower:
                             return 'manual'
-                        elif 'connected' in line.lower() or 'disconnected' in line.lower():
+                        elif 'connected' in line_lower or 'disconnected' in line_lower:
                             return 'networkmanager'
         except (subprocess.TimeoutExpired, FileNotFoundError):
             pass
@@ -48,13 +50,13 @@ class NetworkService:
         try:
             result = subprocess.run(
                 ['networkctl', 'status', interface_name],
-                capture_output=True,
-                text=True,
-                timeout=5
+                capture_output=True, text=True, timeout=5
             )
             if result.returncode == 0:
                 output = result.stdout.lower()
-                if 'state:' in output and any(state in output for state in ['routable', 'configured', 'configuring']):
+                if 'state:' in output and any(
+                    state in output for state in ['routable', 'configured', 'configuring']
+                ):
                     return 'systemd-networkd'
         except (subprocess.TimeoutExpired, FileNotFoundError):
             pass
@@ -66,22 +68,19 @@ class NetworkManagerBackend:
     """NetworkManager operations using nmcli"""
     
     @staticmethod
-    def connect_dhcp(interface_name):
+    def connect_dhcp(interface_name: str) -> tuple:
         """Connect interface using DHCP via NetworkManager"""
         try:
             # First, ensure interface is managed
             subprocess.run(
                 ['nmcli', 'device', 'set', interface_name, 'managed', 'yes'],
-                capture_output=True,
-                timeout=10
+                capture_output=True, timeout=10
             )
             
             # Connect using DHCP
             result = subprocess.run(
                 ['nmcli', 'device', 'connect', interface_name],
-                capture_output=True,
-                text=True,
-                timeout=30
+                capture_output=True, text=True, timeout=30
             )
             
             if result.returncode == 0:
@@ -99,14 +98,12 @@ class NetworkManagerBackend:
             return False, str(e)
     
     @staticmethod
-    def disconnect(interface_name):
+    def disconnect(interface_name: str) -> tuple:
         """Disconnect interface via NetworkManager"""
         try:
             result = subprocess.run(
                 ['nmcli', 'device', 'disconnect', interface_name],
-                capture_output=True,
-                text=True,
-                timeout=10
+                capture_output=True, text=True, timeout=10
             )
             
             if result.returncode == 0:
@@ -120,7 +117,8 @@ class NetworkManagerBackend:
             return False, str(e)
     
     @staticmethod
-    def set_manual_ip(interface_name, ip_address, netmask, gateway=None, dns_servers=None):
+    def set_manual_ip(interface_name: str, ip_address: str, netmask: str,
+                      gateway: str = None, dns_servers: str = None) -> tuple:
         """Configure static IP via NetworkManager"""
         try:
             # Create connection name
@@ -129,8 +127,7 @@ class NetworkManagerBackend:
             # Delete existing connection if exists
             subprocess.run(
                 ['nmcli', 'connection', 'delete', conn_name],
-                capture_output=True,
-                timeout=5
+                capture_output=True, timeout=5
             )
             
             # Calculate CIDR from netmask
@@ -159,9 +156,7 @@ class NetworkManagerBackend:
                 # Activate the connection
                 activate_result = subprocess.run(
                     ['nmcli', 'connection', 'up', conn_name],
-                    capture_output=True,
-                    text=True,
-                    timeout=15
+                    capture_output=True, text=True, timeout=15
                 )
                 
                 if activate_result.returncode == 0:
@@ -175,14 +170,13 @@ class NetworkManagerBackend:
         except Exception as e:
             logger.error(f"NetworkManager static IP error: {e}")
             return False, str(e)
-    
 
 
 class SystemdNetworkdBackend:
     """systemd-networkd operations"""
     
     @staticmethod
-    def connect_dhcp(interface_name):
+    def connect_dhcp(interface_name: str) -> tuple:
         """Connect interface using DHCP via systemd-networkd"""
         try:
             # Create network file
@@ -202,15 +196,13 @@ DHCP=yes
             # Restart networkd
             subprocess.run(
                 ['systemctl', 'restart', 'systemd-networkd'],
-                capture_output=True,
-                timeout=10
+                capture_output=True, timeout=10
             )
             
             # Reconfigure interface
             subprocess.run(
                 ['networkctl', 'reconfigure', interface_name],
-                capture_output=True,
-                timeout=10
+                capture_output=True, timeout=10
             )
             
             logger.info(f"systemd-networkd: Configured {interface_name} for DHCP")
@@ -223,7 +215,8 @@ DHCP=yes
             return False, str(e)
     
     @staticmethod
-    def set_manual_ip(interface_name, ip_address, netmask, gateway=None, dns_servers=None):
+    def set_manual_ip(interface_name: str, ip_address: str, netmask: str,
+                      gateway: str = None, dns_servers: str = None) -> tuple:
         """Configure static IP via systemd-networkd"""
         try:
             network_file = f"/etc/systemd/network/50-{interface_name}.network"
@@ -251,15 +244,13 @@ Address={ip_address}/{cidr}
             # Restart networkd
             subprocess.run(
                 ['systemctl', 'restart', 'systemd-networkd'],
-                capture_output=True,
-                timeout=10
+                capture_output=True, timeout=10
             )
             
             # Reconfigure interface
             subprocess.run(
                 ['networkctl', 'reconfigure', interface_name],
-                capture_output=True,
-                timeout=10
+                capture_output=True, timeout=10
             )
             
             logger.info(f"systemd-networkd: Configured static IP for {interface_name}")
@@ -270,10 +261,9 @@ Address={ip_address}/{cidr}
         except Exception as e:
             logger.error(f"systemd-networkd error: {e}")
             return False, str(e)
-    
 
 
-def connect_interface_dhcp(interface_name):
+def connect_interface_dhcp(interface_name: str) -> tuple:
     """
     Connect interface using DHCP with automatic backend detection.
     Returns: (success: bool, message: str)
@@ -295,7 +285,7 @@ def connect_interface_dhcp(interface_name):
             return False, str(e)
 
 
-def disconnect_interface(interface_name):
+def disconnect_interface(interface_name: str) -> tuple:
     """
     Disconnect interface with automatic backend detection.
     Releases DHCP lease and removes IP address.
@@ -309,85 +299,88 @@ def disconnect_interface(interface_name):
     else:
         # Manual disconnect - handle multiple network managers
         try:
-            import subprocess
-            import shutil
-            import os
-            
             # Check for netctl (Arch Linux network profile manager)
             if shutil.which('netctl'):
                 try:
                     # Stop netctl profile for this interface
-                    result = subprocess.run(
+                    subprocess.run(
                         ['netctl', 'stop-all'],
-                        capture_output=True,
-                        text=True,
-                        timeout=10
+                        capture_output=True, text=True, timeout=10
                     )
-                    if result.returncode == 0:
-                        logger.info(f"Stopped netctl profiles")
+                    logger.info(f"Stopped netctl profiles")
                     
-                    # Also try to find and stop specific profile
-                    # Check for wpa_supplicant controlled by netctl
-                    if os.path.exists(f'/run/netctl/wpa_supplicant-{interface_name}.conf'):
-                        subprocess.run(['killall', f'wpa_supplicant'], 
-                                     capture_output=True, timeout=5)
+                    # Kill wpa_supplicant for this specific interface only
+                    # Use pkill with a more specific pattern to avoid killing unrelated processes
+                    wpa_file = f'/run/netctl/wpa_supplicant-{interface_name}.conf'
+                    if os.path.exists(wpa_file):
+                        subprocess.run(
+                            ['killall', 'wpa_supplicant'],
+                            capture_output=True, timeout=5
+                        )
                         logger.info(f"Stopped wpa_supplicant for {interface_name}")
                 except Exception as e:
                     logger.debug(f"Error stopping netctl: {e}")
             
-            # Try to kill ALL dhcpcd processes for this interface
-            # dhcpcd spawns multiple processes, need to kill them all
-            try:
-                # First try the clean way
-                result = subprocess.run(['dhcpcd', '-k', interface_name], 
-                                      capture_output=True, timeout=5)
-                logger.info(f"Sent kill signal to dhcpcd for {interface_name}")
-                
-                # Wait a moment
-                import time
-                time.sleep(0.5)
-                
-                # Force kill any remaining dhcpcd processes for this interface
-                subprocess.run(['pkill', '-f', f'dhcpcd.*{interface_name}'], 
-                             capture_output=True, timeout=5)
-                logger.info(f"Force killed remaining dhcpcd processes for {interface_name}")
-                
-            except Exception as e:
-                logger.debug(f"Error stopping dhcpcd: {e}")
+            # Try dhcpcd cleanly first
+            if shutil.which('dhcpcd'):
+                try:
+                    # Properly release dhcpcd interface
+                    subprocess.run(
+                        ['dhcpcd', '-k', interface_name],
+                        capture_output=True, timeout=5
+                    )
+                    logger.info(f"Sent kill signal to dhcpcd for {interface_name}")
+                    time.sleep(0.5)
+                except Exception as e:
+                    logger.debug(f"Error stopping dhcpcd for {interface_name}: {e}")
             
             # Try dhclient as well
             if shutil.which('dhclient'):
                 try:
-                    subprocess.run(['dhclient', '-r', interface_name], 
-                                 capture_output=True, timeout=5)
+                    subprocess.run(
+                        ['dhclient', '-r', interface_name],
+                        capture_output=True, timeout=5
+                    )
                     logger.info(f"Released dhclient lease for {interface_name}")
                 except Exception as e:
-                    logger.debug(f"Error stopping dhclient: {e}")
+                    logger.debug(f"Error stopping dhclient for {interface_name}: {e}")
             
             # Flush all IP addresses from interface
-            result = subprocess.run(['ip', 'addr', 'flush', 'dev', interface_name], 
-                         capture_output=True, text=True, timeout=5)
+            result = subprocess.run(
+                ['ip', 'addr', 'flush', 'dev', interface_name],
+                capture_output=True, text=True, timeout=5
+            )
             
             if result.returncode == 0:
                 logger.info(f"Flushed IP addresses from {interface_name}")
             
-            # Additional cleanup: remove default route through this interface
+            # Remove default route through this interface only
             try:
-                subprocess.run(['ip', 'route', 'del', 'default', 'dev', interface_name], 
-                             capture_output=True, timeout=5)
+                subprocess.run(
+                    ['ip', 'route', 'del', 'default', 'dev', interface_name],
+                    capture_output=True, timeout=5
+                )
             except Exception:
                 pass  # Route might not exist
             
-            # Final verification - wait a bit and check if IP is gone
-            import time
+            # Wait for IP to be released
             time.sleep(1)
             
             # Check if interface still has IP
-            check_result = subprocess.run(['ip', 'addr', 'show', interface_name], 
-                                        capture_output=True, text=True, timeout=5)
+            check_result = subprocess.run(
+                ['ip', 'addr', 'show', interface_name],
+                capture_output=True, text=True, timeout=5
+            )
+            
             if 'inet ' in check_result.stdout:
-                logger.warning(f"Interface {interface_name} still has IP after disconnect")
-                return False, "Interface disconnected but IP may reappear (managed by system service). Try: sudo systemctl stop netctl"
+                logger.warning(
+                    f"Interface {interface_name} still has IP after disconnect"
+                )
+                return False, (
+                    "Interface disconnected but IP may reappear "
+                    "(managed by system service). "
+                    "Try: sudo systemctl stop netctl"
+                )
             else:
                 logger.info(f"Successfully disconnected {interface_name}")
                 return True, "Disconnected successfully"
@@ -397,7 +390,8 @@ def disconnect_interface(interface_name):
             return False, str(e)
 
 
-def set_manual_config(interface_name, ip_address, netmask, gateway=None, dns_servers=None):
+def set_manual_config(interface_name: str, ip_address: str, netmask: str,
+                      gateway: str = None, dns_servers: str = None) -> tuple:
     """
     Configure static IP with automatic backend detection.
     Returns: (success: bool, message: str)
@@ -406,9 +400,13 @@ def set_manual_config(interface_name, ip_address, netmask, gateway=None, dns_ser
     logger.info(f"Configuring {interface_name} (managed by {manager}) with static IP")
     
     if manager == 'networkmanager':
-        return NetworkManagerBackend.set_manual_ip(interface_name, ip_address, netmask, gateway, dns_servers)
+        return NetworkManagerBackend.set_manual_ip(
+            interface_name, ip_address, netmask, gateway, dns_servers
+        )
     elif manager == 'systemd-networkd':
-        return SystemdNetworkdBackend.set_manual_ip(interface_name, ip_address, netmask, gateway, dns_servers)
+        return SystemdNetworkdBackend.set_manual_ip(
+            interface_name, ip_address, netmask, gateway, dns_servers
+        )
     else:
         # Manual configuration - return success to let existing code handle it
         return None, "Using manual configuration"

@@ -1,0 +1,219 @@
+/* NetUI-GTK Stylesheet */
+/* Modern, clean design for network interface management */
+
+/* Main window styling */
+window {
+    background-color: #f5f5f5;
+}
+
+/* Header row styling */
+listbox row:first-child {
+    background: linear-gradient(135deg, #2c3e50, #3498db);
+    color: white;
+    font-weight: bold;
+    border-radius: 8px 8px 0 0;
+    padding: 8px;
+    margin-bottom: 2px;
+}
+
+listbox row:first-child label {
+    color: white;
+    font-size: 12px;
+}
+
+/* Interface rows */
+listbox row {
+    background-color: white;
+    border: 1px solid #e0e0e0;
+    border-top: none;
+    padding: 6px;
+    transition: background-color 0.2s ease;
+}
+
+listbox row:hover {
+    background-color: #f0f7ff;
+}
+
+listbox row:last-child {
+    border-radius: 0 0 8px 8px;
+}
+
+/* Interface name styling */
+listbox row label:first-child {
+    font-family: 'Monospace', 'Courier New', monospace;
+    font-size: 11px;
+    color: #2c3e50;
+}
+
+/* Switch styling */
+switch {
+    margin: 4px;
+}
+
+switch:checked {
+    background-color: #27ae60;
+}
+
+/* Button styling */
+button {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: bold;
+    transition: all 0.2s ease;
+}
+
+button:hover {
+    background: linear-gradient(135deg, #2980b9, #2471a3);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+button:active {
+    background: linear-gradient(135deg, #2471a3, #1f618d);
+}
+
+/* Notebook (tab) styling */
+notebook {
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+}
+
+notebook tab {
+    background-color: #f0f0f0;
+    padding: 8px 16px;
+    border: 1px solid #ddd;
+    border-bottom: none;
+}
+
+notebook tab:checked {
+    background-color: white;
+    border-bottom: 2px solid #3498db;
+    font-weight: bold;
+}
+
+/* Frame styling */
+frame {
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    margin: 4px;
+}
+
+frame > label {
+    font-weight: bold;
+    color: #2c3e50;
+    padding: 4px 8px;
+}
+
+/* Entry fields */
+entry {
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 6px;
+    background-color: white;
+    transition: border-color 0.2s ease;
+}
+
+entry:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 4px rgba(52,152,219,0.3);
+}
+
+/* Grid spacing */
+grid {
+    padding: 8px;
+}
+
+/* Separator styling */
+separator {
+    color: #ddd;
+    margin: 8px 0;
+}
+
+/* Scrolled window */
+scrolledwindow {
+    border: 1px solid #ddd;
+    border-radius: 6px;
+}
+
+/* Info labels */
+label.info {
+    color: #7f8c8d;
+    font-style: italic;
+    font-size: 10px;
+}
+
+/* Warning labels */
+label.warning {
+    color: #e67e22;
+    font-weight: bold;
+}
+
+/* Error labels */
+label.error {
+    color: #e74c3c;
+    font-weight: bold;
+}
+
+/* Status indicators */
+.status-up {
+    color: #27ae60;
+    font-weight: bold;
+}
+
+.status-down {
+    color: #e74c3c;
+    font-weight: bold;
+}
+
+/* Dialog styling */
+dialog {
+    background-color: white;
+    border-radius: 8px;
+}
+
+/* Button box */
+buttonbox {
+    margin: 8px;
+    spacing: 8px;
+}
+
+/* Cancel button */
+button.cancel {
+    background: linear-gradient(135deg, #95a5a6, #7f8c8d);
+}
+
+button.cancel:hover {
+    background: linear-gradient(135deg, #7f8c8d, #6c7a7d);
+}
+
+/* Apply/Save button */
+button.apply {
+    background: linear-gradient(135deg, #27ae60, #229954);
+}
+
+button.apply:hover {
+    background: linear-gradient(135deg, #229954, #1e8449);
+}
+
+/* Close button */
+button.close {
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+}
+
+button.close:hover {
+    background: linear-gradient(135deg, #c0392b, #a93226);
+}
+
+/* Loading spinner placeholder */
+.spinner {
+    -gtk-icon-source: -gtk-icontheme('process-working-symbolic');
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { -gtk-icon-transform: rotate(1turn); }
+}
