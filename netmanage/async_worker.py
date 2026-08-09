@@ -32,17 +32,25 @@ class AsyncWorker:
                       Signature: on_error(exception: Exception) -> None
             *args, **kwargs: Passed to target_func
         """
+        def _schedule_on_main(func: Callable, *func_args: Any) -> None:
+            """Thread-safe way to schedule a callback on the GTK main thread."""
+            try:
+                # Use MainContext.invoke which is thread-safe
+                GLib.MainContext.default().invoke(func, *func_args)
+            except Exception as e:
+                logger.error(f"Failed to schedule callback on main thread: {e}")
+
         def worker() -> None:
             try:
                 result = target_func(*args, **kwargs)
                 # Schedule callback on GTK main thread with (success, result) tuple
-                GLib.idle_add(callback, True, result)
+                _schedule_on_main(callback, True, result)
             except Exception as e:
                 logger.error(f"Async worker error: {e}")
                 if on_error:
-                    GLib.idle_add(on_error, e)
+                    _schedule_on_main(on_error, e)
                 else:
-                    GLib.idle_add(callback, False, str(e))
+                    _schedule_on_main(callback, False, str(e))
 
         thread = threading.Thread(target=worker, daemon=True)
         thread.start()

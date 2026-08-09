@@ -14,7 +14,7 @@ def get_mtu(interface_name):
     try:
         with open(f"/sys/class/net/{interface_name}/mtu", "r") as f:
             return int(f.read().strip())
-    except (FileNotFoundError, ValueError) as e:
+    except (FileNotFoundError, ValueError, OSError) as e:
         logger.error(f"Error getting MTU for {interface_name}: {e}")
         return None
 
@@ -59,7 +59,7 @@ def get_interface_stats(interface_name):
         try:
             with open(f"{stats_path}/{file}", "r") as f:
                 stats[label] = int(f.read().strip())
-        except (FileNotFoundError, ValueError):
+        except (FileNotFoundError, ValueError, OSError):
             stats[label] = 0
     
     return stats
@@ -82,7 +82,7 @@ def get_link_speed(interface_name):
             if speed > 0:
                 return f"{speed} Mbps"
             return "Unknown"
-    except (FileNotFoundError, ValueError):
+    except (FileNotFoundError, ValueError, OSError):
         return "Unknown"
 
 
@@ -91,7 +91,7 @@ def get_carrier_state(interface_name):
     try:
         with open(f"/sys/class/net/{interface_name}/carrier", "r") as f:
             return int(f.read().strip()) == 1
-    except (FileNotFoundError, ValueError):
+    except (FileNotFoundError, ValueError, OSError):
         return False
 
 
@@ -100,7 +100,7 @@ def get_operstate(interface_name):
     try:
         with open(f"/sys/class/net/{interface_name}/operstate", "r") as f:
             return f.read().strip().upper()
-    except (FileNotFoundError, ValueError):
+    except (FileNotFoundError, ValueError, OSError):
         return "UNKNOWN"
 
 

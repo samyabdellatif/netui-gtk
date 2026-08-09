@@ -1,70 +1,54 @@
-'''
-Copyright (c) 2009, Wurldtech Security Technologies, Inc.
-All rights reserved.
+"""
+Routing table utilities.
+Reads /proc/net/route to find default interface and gateway.
+"""
+import logging
+from typing import Optional
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
+logger = logging.getLogger(__name__)
 
-    * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
-      
-    * Redistributions in binary form must reproduce the above copyright
-      notice, this list of conditions and the following disclaimer in the
-      documentation and/or other materials provided with the distribution.
-      
-    * Neither the name of Wurldtech Security Technologies, Inc. nor the
-      names of its contributors may be used to endorse or promote products
-      derived from this software without specific prior written permission.
+ROUTE_FILE = "/proc/net/route"
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
-DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-'''
 
-def get_default_if():
-    """ Returns the default interface """
-    f = open ('/proc/net/route', 'r')
-    for line in f:
-        words = line.split()
-        dest = words[1]
+def _read_route_file() -> list:
+    """Read and parse the route file, returning list of (iface, dest, gw) tuples."""
+    routes = []
+    try:
+        with open(ROUTE_FILE, 'r') as f:
+            # Skip header line
+            next(f, None)
+            for line in f:
+                parts = line.split()
+                if len(parts) < 3:
+                    continue
+                routes.append((parts[0], parts[1], parts[2]))
+    except (FileNotFoundError, PermissionError) as e:
+        logger.error(f"Error reading {ROUTE_FILE}: {e}")
+    return routes
+
+
+def get_default_if() -> Optional[str]:
+    """Return the default interface name, or None if no default route exists."""
+    for iface, dest, _ in _read_route_file():
         try:
-            if (int (dest) == 0):
-                interf = words[0]
-                break
+            if int(dest, 16) == 0:
+                return iface
         except ValueError:
-            pass
-    return interf
+            continue
+    return None
 
-def get_default_gw():
-    """ Returns the default gateway """
-    octet_list = []
-    gw_from_route = None
-    f = open ('/proc/net/route', 'r')
-    for line in f:
-        words = line.split()
-        dest = words[1]
+
+def get_default_gw() -> Optional[str]:
+    """Return the default gateway IP, or None if no default route exists."""
+    for _, dest, gw_hex in _read_route_file():
         try:
-            if (int (dest) == 0):
-                gw_from_route = words[2]
-                break
-        except ValueError:
-            pass
-        
-    if not gw_from_route:
-        return None 
-    
-    for i in range(8, 1, -2):
-        octet = gw_from_route[i-2:i]
-        octet = int(octet, 16)
-        octet_list.append(str(octet)) 
-    
-    gw_ip = ".".join(octet_list)
-            
-    return gw_ip
+            if int(dest, 16) == 0:
+                # Convert hex gateway to dotted decimal
+                octets = []
+                for i in range(8, 1, -2):
+                    octet = int(gw_hex[i - 2:i], 16)
+                    octets.append(str(octet))
+                return ".".join(octets)
+        except (ValueError, IndexError):
+            continue
+    return None

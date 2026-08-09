@@ -19,20 +19,20 @@ def check_dependencies() -> bool:
     """Check for required system tools."""
     required = ['ip']  # iproute2 package
     dhcp_clients = ['dhclient', 'dhcpcd', 'udhcpc']
-    
+
     missing = [cmd for cmd in required if not shutil.which(cmd)]
     if missing:
         print(f"ERROR: Required commands not found: {', '.join(missing)}")
         print("Install: sudo apt install iproute2")
         return False
-    
+
     if not any(shutil.which(cmd) for cmd in dhcp_clients):
         print("WARNING: No DHCP client found!")
         print("DHCP functionality will be limited.")
         print("Install one of:")
         print("  sudo apt install isc-dhcp-client (dhclient)")
         print("  sudo apt install dhcpcd")
-    
+
     return True
 
 
@@ -69,7 +69,7 @@ def restart_with_sudo() -> None:
         else:
             # Running as Python script
             cmd_base = [sys.executable, os.path.abspath(__file__)] + sys.argv[1:]
-        
+
         # Check for privilege escalation tools
         if shutil.which('sudo'):
             cmd = ['sudo', '-E'] + cmd_base
@@ -80,18 +80,18 @@ def restart_with_sudo() -> None:
             print("  sudo: apt install sudo")
             print("  pkexec: apt install policykit-1")
             sys.exit(1)
-        
+
         print(f"Restarting with elevated privileges...")
         sys.stdout.flush()
-        
+
         # Run with sudo - the '-E' flag preserves the environment automatically
         result = subprocess.run(cmd)
-        
+
         if result.returncode != 0:
             print(f"WARNING: Application exited with code {result.returncode}")
-        
+
         sys.exit(result.returncode)
-        
+
     except FileNotFoundError:
         print(f"ERROR: Privilege escalation tool not found. Cannot elevate privileges.")
         sys.exit(1)
@@ -113,7 +113,7 @@ def main() -> None:
     parser.add_argument('--list', action='store_true',
                        help='List network interfaces and exit')
     args = parser.parse_args()
-    
+
     # Handle --check flag
     if args.check:
         print("Running system check...")
@@ -124,12 +124,12 @@ def main() -> None:
         else:
             print("check_system.py not found")
         sys.exit(0)
-    
+
     # Handle --list flag (requires some privileges)
     if args.list:
         print("Network Interfaces:")
         try:
-            from netmanage.ifconfig import list_ifs
+            from netmanage.interface import list_ifs
             interfaces = list_ifs()
             for iface in interfaces:
                 print(f"  - {iface.name}")
@@ -143,14 +143,14 @@ def main() -> None:
         except Exception as e:
             print(f"Error listing interfaces: {e}")
         sys.exit(0)
-    
+
     print("Starting netui-gtk application...")
-    
+
     # Check dependencies first
     if not check_dependencies():
         print("\nCannot continue without required dependencies.")
         sys.exit(1)
-    
+
     # Check if running with root privileges
     if not check_root_privileges():
         print("This application requires root privileges to manage network interfaces.")
@@ -158,12 +158,12 @@ def main() -> None:
         restart_with_sudo()
         # restart_with_sudo only returns on failure
         sys.exit(1)
-    
+
     print("Running with root privileges.")
-    
+
     # Check for NetworkManager conflicts
     check_network_manager()
-    
+
     # Create and run the main window
     win = netUImainWindow()
     win.connect("destroy", Gtk.main_quit)

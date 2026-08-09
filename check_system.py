@@ -15,9 +15,12 @@ def check_command(cmd):
 def check_python_module(module):
     """Check if a Python module can be imported."""
     try:
+        if module == 'gi.repository.Gtk':
+            import gi
+            gi.require_version('Gtk', '3.0')
         __import__(module)
         return True
-    except ImportError:
+    except (ImportError, ValueError):
         return False
 
 def get_system_info():
