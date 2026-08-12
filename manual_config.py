@@ -29,13 +29,29 @@ class ManualConfigWindow(Gtk.Window):
         if self.interface:
             title += f" - {self.interface.name}"
         Gtk.Window.__init__(self, title=title)
-        self.set_border_width(10)
-        self.set_default_size(450, 400)
+        self.set_border_width(0)
+        self.set_default_size(500, 500)
         self.set_position(Gtk.WindowPosition.CENTER)
 
         # Main layout container
-        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         self.add(vbox)
+
+        # Header bar
+        header = Gtk.HeaderBar()
+        header.set_show_close_button(True)
+        header.props.title = "Static IP Configuration"
+        if self.interface:
+            header.props.subtitle = f"Interface: {self.interface.name}"
+        self.set_titlebar(header)
+
+        # Content area
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        content.set_margin_top(12)
+        content.set_margin_bottom(12)
+        content.set_margin_start(12)
+        content.set_margin_end(12)
+        vbox.pack_start(content, True, True, 0)
 
         # Info label
         info_label = Gtk.Label(
@@ -43,12 +59,13 @@ class ManualConfigWindow(Gtk.Window):
             use_markup=True,
             xalign=0
         )
-        vbox.pack_start(info_label, False, False, 0)
+        info_label.get_style_context().add_class("info")
+        content.pack_start(info_label, False, False, 0)
 
         # Scrolled window for form
         scrolled = Gtk.ScrolledWindow()
         scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        vbox.pack_start(scrolled, True, True, 0)
+        content.pack_start(scrolled, True, True, 0)
 
         # Grid for form fields
         grid = Gtk.Grid()
@@ -64,6 +81,7 @@ class ManualConfigWindow(Gtk.Window):
 
         # IPv4 Section
         section_label = Gtk.Label(label="<b>IPv4 Configuration</b>", use_markup=True, xalign=0)
+        section_label.get_style_context().add_class("section-header")
         grid.attach(section_label, 0, row, 2, 1)
         row += 1
 
@@ -114,6 +132,7 @@ class ManualConfigWindow(Gtk.Window):
 
         # IPv6 Section
         label_ipv6 = Gtk.Label(label="<b>IPv6 Configuration (Optional)</b>", use_markup=True, xalign=0)
+        label_ipv6.get_style_context().add_class("section-header")
         grid.attach(label_ipv6, 0, row, 2, 1)
         row += 1
 
@@ -137,17 +156,18 @@ class ManualConfigWindow(Gtk.Window):
         bbox = Gtk.ButtonBox(orientation=Gtk.Orientation.HORIZONTAL)
         bbox.set_layout(Gtk.ButtonBoxStyle.END)
         bbox.set_spacing(10)
-        vbox.pack_end(bbox, False, False, 0)
+        bbox.set_margin_top(10)
+        content.pack_end(bbox, False, False, 0)
 
         # Cancel Button
         btn_cancel = Gtk.Button(label="Cancel")
-        btn_cancel.get_style_context().add_class("cancel")
+        btn_cancel.get_style_context().add_class("ghost")
         btn_cancel.connect("clicked", self.on_cancel_clicked)
         bbox.add(btn_cancel)
 
         # Save/Apply Button
         self.btn_save = Gtk.Button(label="Apply")
-        self.btn_save.get_style_context().add_class("apply")
+        self.btn_save.get_style_context().add_class("success")
         self.btn_save.connect("clicked", self.on_apply_clicked)
         bbox.add(self.btn_save)
 

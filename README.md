@@ -20,8 +20,11 @@ A lightweight, Python-based graphical user interface for managing network interf
 ### ⚡ Smart Backend Integration
 - 🔌 Automatically detects and uses **NetworkManager** (nmcli)
 - 🔧 Integrates with **systemd-networkd**
-- ⚡ Falls back to direct control (`ip` commands)
+- 📡 Detects **netctl**, **wpa_supplicant**, **dhcpcd**, **dhclient**, and **Wicd** managers
+- 🎯 Shows which network manager controls **each interface** with color-coded badges
+- 🖥️ **System network managers panel** - shows all installed/running network tools with descriptions
 - ✅ **No service conflicts!** Works alongside existing network managers
+- ⚡ Falls back to direct control (`ip` commands)
 
 ### 🔧 Advanced Features
 - 📊 **Real-time statistics**: RX/TX bytes, packets, errors (auto-refreshing)
@@ -31,11 +34,21 @@ A lightweight, Python-based graphical user interface for managing network interf
 - 🚀 **Link speed & carrier**: Display link speed, duplex, and cable status
 - 🔍 **Driver information**: View kernel driver details
 
-### 🎨 Modern UI
-- **Clean, modern design** with CSS styling (gradients, rounded corners, hover effects)
-- **Responsive layout** with scrolled interface list
+### 🎨 Professional Modern UI
+- **Header bar navigation** with app title, subtitle, and refresh controls
+- **Live summary stats bar** showing Total/Up/Down/Connected interface counts
+- **Smart interface classification** with colored type badges (Ethernet, Wi-Fi, Bridge, Virtual, Loopback)
+- **Real-time status indicators** with color-coded dots and backend badges (NetworkManager/systemd-networkd/Manual)
+- **Card-based layout** with rich interface detail (MAC, IP, status, backend)
+- **Instant search/filter** to quickly find any interface
+- **Empty states** for no interfaces and no search results
+- **Consistent modern styling** across all windows (main, static config, advanced settings) with a cohesive color palette
+- **Resilient CSS loading** - external stylesheet with inline fallback
 - **Persistent window size** remembered across sessions (XDG standards)
 - **Desktop integration** with proper `.desktop` file
+- **Works reliably** across all major Linux distros (GTK+ 3 compatible CSS only)
+- **No automatic network operations during initialization** - switches connect signals after state is set
+- **No window rebuild warnings** - refresh updates only the inner content, keeping the titlebar intact
 
 ### 🛡️ Safety & Reliability
 - **Input validation**: All fields validated before changes are applied
@@ -110,12 +123,19 @@ This will detect NetworkManager or systemd-networkd conflicts and offer to stop 
 Launch from application menu or run `netui-gtk` from terminal.
 
 The main window displays:
-1. **Interface list** with details (name, MAC, IP)
-2. **Status switch** - toggle interface up/down
-3. **Connection switch** - connect via DHCP / disconnect
-4. **Config button** - manual static IP configuration
-5. **Advanced button** - statistics, MTU, MAC cloning, promiscuous mode
-6. **Refresh button** - reload interface list
+1. **Header bar** with the NetUI title, subtitle, and a refresh button
+2. **Summary stats bar** - at-a-glance counts of total, up, down, and connected interfaces
+3. **Search bar** - type to instantly filter interfaces by name
+4. **Interface cards** with:
+   - Interface name and type badge (Ethernet, Wi-Fi, Bridge, etc.)
+   - Status indicator (UP/DOWN with color-coded dot)
+   - Backend manager badge (NetworkManager, systemd-networkd, Manual)
+   - MAC address and IP address details
+   - Status switch (toggle interface up/down)
+   - Connection switch (connect via DHCP / disconnect)
+   - Config button (static IP configuration)
+   - Advanced button (statistics, MTU, MAC cloning, promiscuous mode)
+5. **Footer** showing the total interface count and requirements
 
 ### CLI Mode
 
@@ -183,8 +203,15 @@ Network operations that could block the GUI (DHCP lease, disconnect) run in **ba
 ### Backend Detection
 The `NetworkService` class automatically detects which network manager controls each interface:
 1. **NetworkManager** - checks via `nmcli device status`
-2. **systemd-networkd** - checks via `networkctl status`
-3. **Manual** - falls back to direct `ip` commands and DHCP clients
+2. **systemd-networkd** - checks via `networkctl status` and `/etc/systemd/network/*.network` files
+3. **netctl** - checks via `netctl list` and `netctl is-active`
+4. **wpa_supplicant** - checks running processes bound to the interface
+5. **dhcpcd** - checks via `dhcpcd --dumplease`
+6. **dhclient** - checks lease files for active bindings
+7. **Wicd** - checks via `wicd-cli`
+8. **Manual** - falls back to direct `ip` commands and DHCP clients
+
+The UI displays a **system network managers panel** showing all installed/running tools, and each interface card shows a color-coded badge indicating which manager controls it.
 
 ### Input Validation
 All user inputs are validated before execution:

@@ -34,36 +34,55 @@ class AdvancedConfigWindow(Gtk.Window):
         if self.interface:
             title += f" - {self.interface.name}"
         Gtk.Window.__init__(self, title=title)
-        self.set_border_width(10)
-        self.set_default_size(500, 600)
+        self.set_border_width(0)
+        self.set_default_size(550, 650)
         self.set_position(Gtk.WindowPosition.CENTER)
 
         # Main layout container
-        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         self.add(vbox)
+
+        # Header bar
+        header = Gtk.HeaderBar()
+        header.set_show_close_button(True)
+        header.props.title = "Advanced Settings"
+        if self.interface:
+            header.props.subtitle = f"Interface: {self.interface.name}"
+        self.set_titlebar(header)
+
+        # Content area
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        content.set_margin_top(10)
+        content.set_margin_bottom(10)
+        content.set_margin_start(10)
+        content.set_margin_end(10)
+        vbox.pack_start(content, True, True, 0)
 
         # Create notebook for tabs
         notebook = Gtk.Notebook()
-        vbox.pack_start(notebook, True, True, 0)
+        content.pack_start(notebook, True, True, 0)
 
         # Tab 1: Statistics
         stats_page = self.create_statistics_page()
-        notebook.append_page(stats_page, Gtk.Label(label="Statistics"))
+        notebook.append_page(stats_page, Gtk.Label(label="📊 Statistics"))
 
         # Tab 2: Link Settings
         link_page = self.create_link_settings_page()
-        notebook.append_page(link_page, Gtk.Label(label="Link Settings"))
+        notebook.append_page(link_page, Gtk.Label(label="🔗 Link Settings"))
 
         # Tab 3: Advanced
         advanced_page = self.create_advanced_page()
-        notebook.append_page(advanced_page, Gtk.Label(label="Advanced"))
+        notebook.append_page(advanced_page, Gtk.Label(label="⚙ Advanced"))
 
         # Close button
         bbox = Gtk.ButtonBox(orientation=Gtk.Orientation.HORIZONTAL)
         bbox.set_layout(Gtk.ButtonBoxStyle.END)
-        vbox.pack_end(bbox, False, False, 0)
+        bbox.set_spacing(10)
+        bbox.set_margin_top(10)
+        content.pack_end(bbox, False, False, 0)
 
         btn_close = Gtk.Button(label="Close")
+        btn_close.get_style_context().add_class("ghost")
         btn_close.connect("clicked", lambda w: self.destroy())
         bbox.add(btn_close)
 
@@ -168,6 +187,7 @@ class AdvancedConfigWindow(Gtk.Window):
 
         # MTU Setting
         label = Gtk.Label(label="<b>MTU (Maximum Transmission Unit):</b>", use_markup=True, xalign=0)
+        label.get_style_context().add_class("section-header")
         grid.attach(label, 0, row, 2, 1)
         row += 1
 
@@ -181,6 +201,7 @@ class AdvancedConfigWindow(Gtk.Window):
                 self.entry_mtu.set_text(str(current_mtu))
 
         btn_set_mtu = Gtk.Button(label="Set MTU")
+        btn_set_mtu.get_style_context().add_class("primary")
         btn_set_mtu.connect("clicked", self.on_set_mtu)
 
         hbox.pack_start(label_mtu, False, False, 0)
@@ -195,6 +216,7 @@ class AdvancedConfigWindow(Gtk.Window):
             use_markup=True,
             xalign=0
         )
+        info_label.get_style_context().add_class("info")
         grid.attach(info_label, 0, row, 2, 1)
         row += 1
 
@@ -205,6 +227,7 @@ class AdvancedConfigWindow(Gtk.Window):
 
         # MAC Cloning
         label = Gtk.Label(label="<b>MAC Address Cloning:</b>", use_markup=True, xalign=0)
+        label.get_style_context().add_class("section-header")
         grid.attach(label, 0, row, 2, 1)
         row += 1
 
@@ -221,6 +244,7 @@ class AdvancedConfigWindow(Gtk.Window):
                 pass
 
         btn_set_mac = Gtk.Button(label="Clone MAC")
+        btn_set_mac.get_style_context().add_class("warning")
         btn_set_mac.connect("clicked", self.on_clone_mac)
 
         hbox.pack_start(label_mac, False, False, 0)
@@ -234,6 +258,7 @@ class AdvancedConfigWindow(Gtk.Window):
             use_markup=True,
             xalign=0
         )
+        warning_label.get_style_context().add_class("warning")
         grid.attach(warning_label, 0, row, 2, 1)
 
         return grid
@@ -252,6 +277,7 @@ class AdvancedConfigWindow(Gtk.Window):
 
         # Promiscuous Mode
         label = Gtk.Label(label="<b>Promiscuous Mode:</b>", use_markup=True, xalign=0)
+        label.get_style_context().add_class("section-header")
         grid.attach(label, 0, row, 1, 1)
 
         self.promisc_switch = Gtk.Switch()
@@ -266,6 +292,7 @@ class AdvancedConfigWindow(Gtk.Window):
             use_markup=True,
             xalign=0
         )
+        info_label.get_style_context().add_class("info")
         grid.attach(info_label, 0, row, 2, 1)
         row += 1
 
@@ -276,6 +303,7 @@ class AdvancedConfigWindow(Gtk.Window):
 
         # Driver Info
         label = Gtk.Label(label="<b>Driver Information:</b>", use_markup=True, xalign=0)
+        label.get_style_context().add_class("section-header")
         grid.attach(label, 0, row, 2, 1)
         row += 1
 
@@ -290,6 +318,7 @@ class AdvancedConfigWindow(Gtk.Window):
                     row += 1
             else:
                 label = Gtk.Label(label="<i>No driver information available</i>", use_markup=True, xalign=0)
+                label.get_style_context().add_class("info")
                 grid.attach(label, 0, row, 2, 1)
 
         return grid

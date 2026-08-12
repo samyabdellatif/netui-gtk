@@ -17,7 +17,36 @@ logger = logging.getLogger(__name__)
 # Backend identifiers
 BACKEND_NETWORKMANAGER = 'networkmanager'
 BACKEND_SYSTEMD_NETWORKD = 'systemd-networkd'
+BACKEND_NETCTL = 'netctl'
+BACKEND_WPA_SUPPLICANT = 'wpa_supplicant'
+BACKEND_DHCPCD = 'dhcpcd'
+BACKEND_DHCLIENT = 'dhclient'
+BACKEND_WICD = 'wicd'
 BACKEND_MANUAL = 'manual'
+
+# All known network managers (for system detection)
+ALL_MANAGERS = (
+    BACKEND_NETWORKMANAGER,
+    BACKEND_SYSTEMD_NETWORKD,
+    BACKEND_NETCTL,
+    BACKEND_WPA_SUPPLICANT,
+    BACKEND_DHCPCD,
+    BACKEND_DHCLIENT,
+    BACKEND_WICD,
+    BACKEND_MANUAL,
+)
+
+# Human-readable labels
+MANAGER_LABELS = {
+    BACKEND_NETWORKMANAGER: 'NetworkManager',
+    BACKEND_SYSTEMD_NETWORKD: 'systemd-networkd',
+    BACKEND_NETCTL: 'netctl',
+    BACKEND_WPA_SUPPLICANT: 'wpa_supplicant',
+    BACKEND_DHCPCD: 'dhcpcd',
+    BACKEND_DHCLIENT: 'dhclient',
+    BACKEND_WICD: 'wicd',
+    BACKEND_MANUAL: 'Manual',
+}
 
 
 class NetworkServiceError(Exception):
@@ -69,7 +98,8 @@ class NetworkService:
     def detect_interface_manager(interface_name: str) -> str:
         """
         Detect which service manages an interface.
-        Returns: 'networkmanager', 'systemd-networkd', or 'manual'
+        Returns: 'networkmanager', 'systemd-networkd', 'netctl', 'wpa_supplicant',
+                 'dhcpcd', 'dhclient', 'wicd', or 'manual'
         """
         # Check NetworkManager
         try:
@@ -79,7 +109,8 @@ class NetworkService:
                     if interface_name in line:
                         line_lower = line.lower()
                         if 'unmanaged' in line_lower:
-                            return BACKEND_MANUAL
+                            # Fall through to check other managers
+                            break
                         elif 'connected' in line_lower or 'disconnected' in line_lower:
                             return BACKEND_NETWORKMANAGER
         except (CommandTimeoutError, BackendNotFoundError):
@@ -97,7 +128,223 @@ class NetworkService:
         except (CommandTimeoutError, BackendNotFoundError):
             pass
 
+        # Check netctl (Arch Linux)
+        try:
+            result = _run_command(['netctl', 'list'], timeout=5)
+            if result.returncode == 0 and interface_name in result.stdout:
+                # Check if a profile is active for this interface
+                active_result = _run_command(['netctl', 'is-active', interface_name], timeout=5)
+                if 'active' in active_result.stdout.lower():
+                    return BACKEND_NETCTL
+        except (CommandTimeoutError, BackendNotFoundError):
+            pass
+
+        # Check wpa_supplicant (check if process running on this interface)
+        try:
+            result = subprocess.run(
+                ['pgrep', '-af', f'wpa_supplicant.*{interface_name}'],
+                capture_output=True, text=True, timeout=5
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                return BACKEND_WPA_SUPPLICANT
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            pass
+
+        # Check if interface has an active dhcpcd lease
+        if shutil.which('dhcpcd'):
+            try:
+                result = subprocess.run(
+                    ['dhcpcd', '--dumplease', interface_name],
+                    capture_output=True, text=True, timeout=5
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    return BACKEND_DHCPCD
+            except (subprocess.TimeoutExpired, FileNotFoundError):
+                pass
+
+        # Check if interface has an active dhclient lease
+        if shutil.which('dhclient'):
+            # dhclient doesn't provide a simple check, but we can look at leases file
+            lease_files = [
+                f'/var/lib/dhcp/dhclient.{interface_name}.leases',
+                f'/var/lib/dhcpcd/dhclient.{interface_name}.leases',
+                f'/var/lib/dhcp/dhclient-{interface_name}.leases',
+            ]
+            for lease_file in lease_files:
+                if os.path.exists(lease_file):
+                    try:
+                        with open(lease_file, 'r') as f:
+                            content = f.read()
+                        if 'lease' in content and 'binding state active' in content:
+                            return BACKEND_DHCLIENT
+                    except (FileNotFoundError, PermissionError):
+                        pass
+
+        # Check wicd
+        try:
+            result = _run_command(['wicd-cli', '--wired', '--list-networks'], timeout=5)
+            if result.returncode == 0 and interface_name in result.stdout:
+                return BACKEND_WICD
+        except (CommandTimeoutError, BackendNotFoundError):
+            pass
+
+        # Check for systemd-networkd .network files for this interface
+        try:
+            if os.path.isdir('/etc/systemd/network'):
+                for f in os.listdir('/etc/systemd/network'):
+                    if f.endswith('.network'):
+                        try:
+                            with open(os.path.join('/etc/systemd/network', f), 'r') as fh:
+                                content = fh.read()
+                            if interface_name in content:
+                                return BACKEND_SYSTEMD_NETWORKD
+                        except (FileNotFoundError, PermissionError):
+                            pass
+        except (FileNotFoundError, PermissionError):
+            pass
+
         return BACKEND_MANUAL
+
+    @staticmethod
+    def detect_installed_managers() -> list:
+        """
+        Detect all network manager tools installed and running on the system.
+        Returns: list of dicts with {id, name, installed, running, description}
+        """
+        managers = []
+
+        # Check each known manager
+        checks = [
+            (
+                BACKEND_NETWORKMANAGER,
+                'NetworkManager',
+                'NetworkManager (nmcli)',
+                'Full-featured network manager with connection profiles',
+                ['nmcli', 'NetworkManager'],
+            ),
+            (
+                BACKEND_SYSTEMD_NETWORKD,
+                'systemd-networkd',
+                'systemd-networkd',
+                "Systemd's built-in network configuration daemon",
+                ['networkctl', 'systemd-networkd'],
+            ),
+            (
+                BACKEND_NETCTL,
+                'netctl',
+                'netctl',
+                'Profile-based network manager (Arch Linux)',
+                ['netctl'],
+            ),
+            (
+                BACKEND_WPA_SUPPLICANT,
+                'wpa_supplicant',
+                'wpa_supplicant',
+                'Wi-Fi Protected Access authentication (WPA/WPA2)',
+                ['wpa_supplicant'],
+            ),
+            (
+                BACKEND_DHCPCD,
+                'dhcpcd',
+                'dhcpcd',
+                'DHCP client daemon with robust lease management',
+                ['dhcpcd'],
+            ),
+            (
+                BACKEND_DHCLIENT,
+                'dhclient',
+                'dhclient (ISC DHCP)',
+                'Classic ISC DHCP client',
+                ['dhclient'],
+            ),
+            (
+                BACKEND_WICD,
+                'wicd',
+                'Wicd',
+                'Lightweight network connection manager',
+                ['wicd-cli', 'wicd'],
+            ),
+        ]
+
+        for manager_id, name, display_name, description, binaries in checks:
+            # Check if any of the binaries are installed
+            installed = any(shutil.which(bin) for bin in binaries)
+
+            # Check if the service is running
+            running = False
+            service_name = None
+            for bin in binaries:
+                if bin in ('nmcli', 'networkctl', 'netctl', 'wpa_supplicant', 'dhcpcd', 'dhclient', 'wicd-cli', 'wicd'):
+                    service_name = bin
+                    break
+
+            if service_name:
+                # Check common service names
+                service_names = []
+                if manager_id == BACKEND_NETWORKMANAGER:
+                    service_names = ['NetworkManager']
+                elif manager_id == BACKEND_SYSTEMD_NETWORKD:
+                    service_names = ['systemd-networkd']
+                elif manager_id == BACKEND_NETCTL:
+                    service_names = ['netctl']
+                elif manager_id == BACKEND_WPA_SUPPLICANT:
+                    service_names = ['wpa_supplicant']
+                elif manager_id == BACKEND_DHCPCD:
+                    service_names = ['dhcpcd']
+                elif manager_id == BACKEND_DHCLIENT:
+                    service_names = ['dhclient']
+                elif manager_id == BACKEND_WICD:
+                    service_names = ['wicd']
+
+                for svc in service_names:
+                    try:
+                        result = subprocess.run(
+                            ['systemctl', 'is-active', svc],
+                            capture_output=True, text=True, timeout=3
+                        )
+                        if result.returncode == 0 and result.stdout.strip() == 'active':
+                            running = True
+                            break
+                    except (subprocess.TimeoutExpired, FileNotFoundError):
+                        pass
+
+            # Also check for processes
+            if not running:
+                try:
+                    result = subprocess.run(
+                        ['pgrep', '-x', service_name] if service_name else ['true'],
+                        capture_output=True, timeout=3
+                    )
+                    if result.returncode == 0:
+                        running = True
+                except (subprocess.TimeoutExpired, FileNotFoundError):
+                    pass
+
+            managers.append({
+                'id': manager_id,
+                'name': name,
+                'display_name': display_name,
+                'installed': installed,
+                'running': running,
+                'description': description,
+            })
+
+        return managers
+
+    @staticmethod
+    def get_manager_status_text(managers: list) -> str:
+        """
+        Generate human-readable summary of network managers.
+        """
+        if not managers:
+            return "No network managers detected"
+
+        lines = []
+        for mgr in managers:
+            status = "running" if mgr['running'] else ("installed" if mgr['installed'] else "not found")
+            lines.append(f"  {mgr['display_name']}: {status}")
+
+        return "\n".join(lines)
 
 
 class NetworkManagerBackend:
