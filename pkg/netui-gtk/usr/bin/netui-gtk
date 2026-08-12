@@ -1,0 +1,2 @@
+#!/bin/sh
+exec python3 /usr/share/netui-gtk/__main__.py "$@"

@@ -73,6 +73,29 @@ sudo ./install.sh
 ./install.sh
 ```
 
+### Debian/Ubuntu Package
+
+```bash
+# Build the .deb package
+./build_deb.sh
+
+# Install
+sudo dpkg -i netui-gtk_1.0.0_all.deb
+```
+
+### Arch Linux Package
+
+```bash
+# Build the Arch package (requires the source tarball)
+tar -czf netui-gtk-1.0.0.tar.gz --exclude='__pycache__' --exclude='*.pyc' --exclude='.git' \
+  __main__.py __init__.py netui.py config.py manual_config.py advanced_config.py \
+  netmanage/ styles/ netui.ico netui-gtk.desktop com.github.netui-gtk.policy netui-gtk.install
+
+# Build and install
+makepkg -f
+sudo pacman -U netui-gtk-1.0.0-1-any.pkg.tar.zst
+```
+
 After installation:
 - **GUI**: Launch from your application menu (System → NetUI GTK)
 - **CLI**: Run `netui-gtk` from terminal
@@ -189,6 +212,9 @@ netui-gtk/
 ├── install.sh           # Installation script
 ├── uninstall.sh         # Uninstallation script
 ├── build.sh             # Build script
+├── build_deb.sh         # Debian/Ubuntu package build script
+├── PKGBUILD             # Arch Linux package build script
+├── netui-gtk.install    # Arch Linux install hooks
 ├── Makefile             # Build automation
 └── README.md            # This file
 ```

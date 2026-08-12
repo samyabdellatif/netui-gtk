@@ -1,0 +1,28 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=NetUI GTK
+GenericName=Network Interface Manager
+Comment=Manage network interfaces with a GTK graphical interface
+Exec=netui-gtk
+Icon=network-wired
+Terminal=false
+Categories=System;Network;Settings;
+Keywords=network;interface;ethernet;wifi;dhcp;ip;configuration;
+StartupNotify=true
+StartupWMClass=netui-gtk
+
+# Desktop actions for quick access
+Actions=ManualConfig;ViewInterfaces;CheckSystem;
+
+[Desktop Action ManualConfig]
+Name=Manual Configuration
+Exec=netui-gtk
+
+[Desktop Action ViewInterfaces]
+Name=View Interfaces (Terminal)
+Exec=x-terminal-emulator -e netui-gtk --list
+
+[Desktop Action CheckSystem]
+Name=Check System Dependencies
+Exec=x-terminal-emulator -e netui-gtk --check
