@@ -55,25 +55,42 @@ A lightweight, Python-based graphical user interface for managing network interf
 - **Graceful error handling**: Clear error dialogs for all failure modes
 - **Concurrent operation safety**: No race conditions during async network operations
 - **Non-destructive commands**: Routes modified per-interface, not globally
+- **Bundled icon**: App loads its own icon directly, avoiding icon-theme crashes
 
 ---
 
 ## Installation
 
-### Quick Install (From Source)
+### Option 1: Quick Install Wizard (Recommended)
+
+The quick install wizard checks dependencies, installs missing packages, and sets up NetUI-GTK automatically.
+
+```bash
+git clone https://github.com/samyabdellatif/netui-gtk
+cd netui-gtk
+./quick-install.sh
+```
+
+The wizard will:
+1. Check for Python 3, GTK+ 3 bindings, iproute2, and a DHCP client
+2. Offer to install any missing dependencies automatically
+3. Ask whether to install **system-wide** (recommended) or **user-only**
+4. Optionally run a safety check for service conflicts
+
+### Option 2: Manual Install (From Source)
 
 ```bash
 git clone https://github.com/samyabdellatif/netui-gtk
 cd netui-gtk
 
-# Install system-wide (recommended)
+# Install system-wide (recommended, requires sudo)
 sudo ./install.sh
 
-# Or install for current user only
+# Or install for current user only (no sudo needed)
 ./install.sh
 ```
 
-### Debian/Ubuntu Package
+### Option 3: Debian/Ubuntu Package (.deb)
 
 ```bash
 # Build the .deb package
@@ -81,28 +98,24 @@ sudo ./install.sh
 
 # Install
 sudo dpkg -i netui-gtk_1.0.0_all.deb
+
+# If you get dependency errors, run:
+sudo apt install -f
 ```
 
-### Arch Linux Package
+### Option 4: Arch Linux Package
+
+The source tarball (`netui-gtk-1.0.0.tar.gz`) is included in the repository.
 
 ```bash
-# Build the Arch package (requires the source tarball)
-tar -czf netui-gtk-1.0.0.tar.gz --exclude='__pycache__' --exclude='*.pyc' --exclude='.git' \
-  __main__.py __init__.py netui.py config.py manual_config.py advanced_config.py \
-  netmanage/ styles/ netui.ico netui-gtk.desktop com.github.netui-gtk.policy netui-gtk.install
-
-# Build and install
+# Build the package (validates checksums automatically)
 makepkg -f
+
+# Install
 sudo pacman -U netui-gtk-1.0.0-1-any.pkg.tar.zst
 ```
 
-After installation:
-- **GUI**: Launch from your application menu (System → NetUI GTK)
-- **CLI**: Run `netui-gtk` from terminal
-
----
-
-### Run from Source (Development)
+### Option 5: Run from Source (Development)
 
 ```bash
 git clone https://github.com/samyabdellatif/netui-gtk
@@ -118,7 +131,7 @@ sudo pacman -S python-gobject gtk3 iproute2 dhclient
 # Fedora:
 sudo dnf install python3-gobject gtk3 iproute dhclient
 
-# Run directly
+# Run directly (requires root for network management)
 sudo python3 __main__.py
 
 # Or with CLI options
@@ -126,6 +139,40 @@ python3 __main__.py --check  # Check dependencies
 python3 __main__.py --list   # List interfaces
 python3 __main__.py --version
 ```
+
+---
+
+## Uninstallation
+
+### From Source Install
+
+```bash
+# System-wide (requires sudo)
+sudo ./uninstall.sh
+
+# User-only
+./uninstall.sh
+```
+
+### From Package
+
+```bash
+# Debian/Ubuntu
+sudo dpkg -r netui-gtk
+
+# Arch
+sudo pacman -R netui-gtk
+```
+
+---
+
+## After Installation
+
+- **GUI**: Launch from your application menu (System → NetUI GTK)
+- **CLI**: Run `netui-gtk` from terminal
+
+The application requires **root privileges** to manage network interfaces. When launched from the menu or terminal, it will automatically request elevated privileges via `pkexec` or `sudo`.
+
 ---
 
 ## Safety Check
@@ -199,6 +246,7 @@ netui-gtk/
 ├── config.py            # Configuration management (XDG)
 ├── manual_config.py     # Static IP configuration window
 ├── advanced_config.py   # Advanced settings window
+├── check_system.py      # System dependency checker
 ├── styles/
 │   └── style.css        # CSS stylesheet for modern UI
 ├── netmanage/
@@ -211,10 +259,14 @@ netui-gtk/
 │   └── network_service.py  # NetworkManager/systemd-networkd integration
 ├── install.sh           # Installation script
 ├── uninstall.sh         # Uninstallation script
+├── quick-install.sh     # Quick install wizard
+├── safety-check.sh      # Service conflict checker
 ├── build.sh             # Build script
 ├── build_deb.sh         # Debian/Ubuntu package build script
 ├── PKGBUILD             # Arch Linux package build script
 ├── netui-gtk.install    # Arch Linux install hooks
+├── netui-gtk.spec       # PyInstaller spec file
+├── setup.py             # Python package setup
 ├── Makefile             # Build automation
 └── README.md            # This file
 ```
@@ -245,6 +297,9 @@ All user inputs are validated before execution:
 - Netmasks validated for correctness
 - MAC addresses validated with regex
 - Gateway and DNS fields checked for valid format
+
+### Icon Handling
+The application loads its bundled `netui.ico` directly via `GdkPixbuf` and sets it as the default window icon. This bypasses icon-theme lookup, which can crash on systems where the fallback `image-missing` icon fails to load (e.g., broken SVG loaders).
 
 ---
 

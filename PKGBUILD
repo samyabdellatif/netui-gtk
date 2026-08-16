@@ -18,7 +18,7 @@ optdepends=(
 )
 install="$pkgname.install"
 source=("$pkgname-$pkgver.tar.gz" "$pkgname.install")
-sha256sums=('40fe59db1c568b948a885ce641fde413c1ac5d73050b182d9bf8ce9b8a1adf5d' '5b139aceb66ee8373974125779633a06301cb3af5ed776a4bd0f4375763cfc02')
+sha256sums=('9496c4acda957763d042dc0e83b88f3dc388da33c7dc2a6c2801bb2ff3c370e5' '5b139aceb66ee8373974125779633a06301cb3af5ed776a4bd0f4375763cfc02')
 
 package() {
     # Create directory structure

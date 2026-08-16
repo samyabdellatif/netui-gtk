@@ -9,10 +9,31 @@ import subprocess
 import gi
 import shutil
 import argparse
+import logging
 
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, Gdk
+gi.require_version('GdkPixbuf', '2.0')
+from gi.repository import Gtk, Gdk, GdkPixbuf
 from netui import netUImainWindow
+
+logger = logging.getLogger(__name__)
+
+
+def set_app_icon() -> None:
+    """Load the bundled application icon and set it as the default window icon.
+
+    This bypasses icon-theme lookup, which can crash on systems where the
+    fallback 'image-missing' icon fails to load (e.g. broken SVG loaders).
+    """
+    try:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        icon_path = os.path.join(script_dir, 'netui.ico')
+        if os.path.exists(icon_path):
+            pixbuf = GdkPixbuf.Pixbuf.new_from_file(icon_path)
+            Gtk.Window.set_default_icon(pixbuf)
+            logger.info(f"Application icon loaded from {icon_path}")
+    except Exception as e:
+        print(f"WARNING: Could not load application icon: {e}")
 
 
 def check_dependencies() -> bool:
@@ -160,6 +181,9 @@ def main() -> None:
         sys.exit(1)
 
     print("Running with root privileges.")
+
+    # Set the application icon (bypasses icon-theme lookup that can crash)
+    set_app_icon()
 
     # Check for NetworkManager conflicts
     check_network_manager()
