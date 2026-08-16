@@ -11,8 +11,8 @@ DEB_NAME="${APP_NAME}_${VERSION}_${ARCH}.deb"
 echo "Starting build process for $APP_NAME..."
 
 # Clean up previous builds
-rm -rf $STAGING_DIR
-rm -f $DEB_NAME
+rm -rf "$STAGING_DIR"
+rm -f "$DEB_NAME"
 
 # Create directory structure
 mkdir -p $STAGING_DIR/usr/share/$APP_NAME
@@ -32,6 +32,7 @@ cp netui.py $STAGING_DIR/usr/share/$APP_NAME/
 cp config.py $STAGING_DIR/usr/share/$APP_NAME/
 cp manual_config.py $STAGING_DIR/usr/share/$APP_NAME/
 cp advanced_config.py $STAGING_DIR/usr/share/$APP_NAME/
+cp check_system.py $STAGING_DIR/usr/share/$APP_NAME/
 cp -r netmanage/* $STAGING_DIR/usr/share/$APP_NAME/netmanage/
 cp styles/style.css $STAGING_DIR/usr/share/$APP_NAME/styles/
 

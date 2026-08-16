@@ -1,8 +1,18 @@
-build/
-dist/
-docs/
-*.egg-info/
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.egg-info/
 .venv/
-.vscode/*.deb
+
+# Build outputs
+build/
+dist/
+*.deb
+*.zst
+*.tar.gz
+pkg/
+src/
+
+# Editor
+.vscode/

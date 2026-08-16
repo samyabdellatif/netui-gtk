@@ -5,7 +5,10 @@ a = Analysis(
     ['__main__.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[
+        ('styles/style.css', 'styles'),
+        ('netui.ico', '.'),
+    ],
     hiddenimports=['gi'],
     hookspath=[],
     hooksconfig={},

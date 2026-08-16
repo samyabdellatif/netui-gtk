@@ -5,7 +5,7 @@ Name=NetUI GTK
 GenericName=Network Interface Manager
 Comment=Manage network interfaces with a GTK graphical interface
 Exec=netui-gtk
-Icon=network-wired
+Icon=netui-gtk
 Terminal=false
 Categories=System;Network;Settings;
 Keywords=network;interface;ethernet;wifi;dhcp;ip;configuration;
@@ -21,8 +21,8 @@ Exec=netui-gtk
 
 [Desktop Action ViewInterfaces]
 Name=View Interfaces (Terminal)
-Exec=x-terminal-emulator -e netui-gtk --list
+Exec=sh -c "netui-gtk --list; echo; read -p 'Press Enter to close...'"
 
 [Desktop Action CheckSystem]
 Name=Check System Dependencies
-Exec=x-terminal-emulator -e netui-gtk --check
+Exec=sh -c "netui-gtk --check; echo; read -p 'Press Enter to close...'"

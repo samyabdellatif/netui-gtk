@@ -88,17 +88,21 @@ else
 fi
 
 # Remove Python cache files from source directory
-if [ -d "__pycache__" ]; then
+# NOTE: Anchored to the script directory to avoid deleting user files
+# when the script is run from an unrelated working directory.
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+if [ -d "$SCRIPT_DIR/__pycache__" ]; then
     echo ""
     echo "Cleaning up cache files..."
-    rm -rf __pycache__
-    rm -rf netmanage/__pycache__
+    rm -rf "$SCRIPT_DIR/__pycache__"
+    rm -rf "$SCRIPT_DIR/netmanage/__pycache__"
     echo "  ✓ Removed cache files"
 fi
 
-# Remove compiled Python files
-find . -type f -name "*.pyc" -delete 2>/dev/null || true
-find . -type d -name "__pycache__" -delete 2>/dev/null || true
+# Remove compiled Python files (only within the project directory)
+find "$SCRIPT_DIR" -type f -name "*.pyc" -delete 2>/dev/null || true
+find "$SCRIPT_DIR" -type d -name "__pycache__" -delete 2>/dev/null || true
 
 echo ""
 echo -e "${GREEN}All cleanup complete!${NC}"

@@ -17,8 +17,8 @@ optdepends=(
     'netctl: Arch Linux network profile manager'
 )
 install="$pkgname.install"
-source=("$pkgname-$pkgver.tar.gz")
-sha256sums=('SKIP')
+source=("$pkgname-$pkgver.tar.gz" "$pkgname.install")
+sha256sums=('40fe59db1c568b948a885ce641fde413c1ac5d73050b182d9bf8ce9b8a1adf5d' '5b139aceb66ee8373974125779633a06301cb3af5ed776a4bd0f4375763cfc02')
 
 package() {
     # Create directory structure
@@ -37,6 +37,7 @@ package() {
     install -m 644 config.py "$pkgdir/usr/share/$pkgname/"
     install -m 644 manual_config.py "$pkgdir/usr/share/$pkgname/"
     install -m 644 advanced_config.py "$pkgdir/usr/share/$pkgname/"
+    install -m 644 check_system.py "$pkgdir/usr/share/$pkgname/"
     install -m 644 styles/style.css "$pkgdir/usr/share/$pkgname/styles/"
     install -m 644 netmanage/*.py "$pkgdir/usr/share/$pkgname/netmanage/"
 

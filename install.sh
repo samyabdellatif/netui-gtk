@@ -49,22 +49,22 @@ chmod 644 "$DESKTOP_DIR/netui-gtk.desktop"
 
 # Create wrapper script in bin directory
 echo "Creating executable wrapper..."
-cat > "$BIN_DIR/netui-gtk" << 'EOF'
+cat > "$BIN_DIR/netui-gtk" << EOF
 #!/bin/bash
 # NetUI-GTK launcher script
 
 # Get the actual script location
-SCRIPT_LOCATION="INSTALL_PATH_PLACEHOLDER"
+SCRIPT_LOCATION="$SCRIPT_DIR"
 
 # Check for root privileges and re-run with pkexec if needed
-if [ $EUID -ne 0 ]; then
+if [ \$EUID -ne 0 ]; then
     if command -v pkexec > /dev/null; then
-        exec pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY HOME=$HOME "$0" "$@"
+        exec pkexec env DISPLAY="\${DISPLAY:-}" XAUTHORITY="\${XAUTHORITY:-}" HOME="\${HOME:-}" "\$0" "\$@"
     elif command -v sudo > /dev/null; then
-        exec sudo -E "$0" "$@"
+        exec sudo -E "\$0" "\$@"
     else
         # For GUI, show error dialog if zenity is available
-        if command -v zenity > /dev/null && [ -n "$DISPLAY" ]; then
+        if command -v zenity > /dev/null && [ -n "\$DISPLAY" ]; then
             zenity --error --text="This application requires root privileges.\nPlease install 'policykit-1' or 'sudo'."
         else
             echo "Error: This application requires root privileges."
@@ -75,12 +75,9 @@ if [ $EUID -ne 0 ]; then
 fi
 
 # Run the actual application
-cd "$SCRIPT_LOCATION"
-exec python3 "$SCRIPT_LOCATION/__main__.py" "$@"
+cd "\$SCRIPT_LOCATION"
+exec python3 "\$SCRIPT_LOCATION/__main__.py" "\$@"
 EOF
-
-# Replace placeholder with actual path
-sed -i "s|INSTALL_PATH_PLACEHOLDER|$SCRIPT_DIR|g" "$BIN_DIR/netui-gtk"
 chmod +x "$BIN_DIR/netui-gtk"
 
 # Update desktop database

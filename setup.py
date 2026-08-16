@@ -26,6 +26,8 @@ setup(
     data_files=[
         ("share/applications", ["netui-gtk.desktop"]),
         ("share/polkit-1/actions", ["com.github.netui-gtk.policy"]),
+        ("share/pixmaps", ["netui.ico"]),
+        ("share/netui-gtk/styles", ["styles/style.css"]),
     ],
     classifiers=[
         "Development Status :: 4 - Beta",
