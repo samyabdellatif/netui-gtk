@@ -283,6 +283,19 @@ button {
     padding: 6px 12px;
     font-size: 12px;
     font-weight: 500;
+    background-color: #ffffff;
+    color: #1e293b;
+    border: 1px solid #cbd5e1;
+}
+
+button:hover {
+    background-color: #e8f0fe;
+    border-color: #94a3b8;
+}
+
+button:active {
+    background-color: #dbeafe;
+    border-color: #94a3b8;
 }
 
 button.primary {
@@ -326,7 +339,7 @@ button.warning:hover {
 }
 
 button.ghost {
-    background-color: transparent;
+    background-color: #ffffff;
     color: #1e293b;
     border: 1px solid #e2e8f0;
 }
@@ -338,7 +351,7 @@ button.ghost:hover {
 
 button.flat {
     background-color: transparent;
-    color: #64748b;
+    color: #cbd5e1;
     border: none;
 }
 
@@ -517,9 +530,24 @@ label.section-header {
 }
 
 /* ---------- Dialogs ---------- */
-dialog {
+dialog,
+messagedialog {
     background-color: #ffffff;
+    color: #1e293b;
     border-radius: 8px;
+}
+
+messagedialog label,
+dialog label {
+    color: #1e293b;
+}
+
+/* Keep MessageDialog content/action areas light regardless of system theme */
+messagedialog .dialog-vbox,
+messagedialog .dialog-action-area,
+messagedialog .horizontal {
+    background-color: #ffffff;
+    color: #1e293b;
 }
 
 /* ---------- Tooltips ---------- */
