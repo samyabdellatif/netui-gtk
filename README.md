@@ -40,8 +40,7 @@ A lightweight, Python-based graphical user interface for managing network interf
 - **Smart interface classification** with colored type badges (Ethernet, Wi-Fi, Bridge, Virtual, Loopback)
 - **Real-time status indicators** with color-coded dots and backend badges (NetworkManager/systemd-networkd/Manual)
 - **Card-based layout** with rich interface detail (MAC, IP, status, backend)
-- **Instant search/filter** to quickly find any interface
-- **Empty states** for no interfaces and no search results
+- **Empty states** for no interfaces
 - **Consistent modern styling** across all windows (main, static config, advanced settings) with a cohesive color palette
 - **Resilient CSS loading** - external stylesheet with inline fallback
 - **Persistent window size** remembered across sessions (XDG standards)
@@ -220,8 +219,7 @@ inside the elevated process; if you still hit it, launch with `--user` or:
 The main window displays:
 1. **Header bar** with the NetUI title, subtitle, and a refresh button
 2. **Summary stats bar** - at-a-glance counts of total, up, down, and connected interfaces
-3. **Search bar** - type to instantly filter interfaces by name
-4. **Interface cards** with:
+3. **Interface cards** with:
    - Interface name and type badge (Ethernet, Wi-Fi, Bridge, etc.)
    - Status indicator (UP/DOWN with color-coded dot)
    - Backend manager badge (NetworkManager, systemd-networkd, Manual)
@@ -230,7 +228,7 @@ The main window displays:
    - Connection switch (connect via DHCP / disconnect)
    - Config button (static IP configuration)
    - Advanced button (statistics, MTU, MAC cloning, promiscuous mode)
-5. **Footer** showing the total interface count and requirements
+4. **Footer** showing the total interface count and requirements
 
 ### CLI Mode
 

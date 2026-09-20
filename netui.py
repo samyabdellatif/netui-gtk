@@ -729,16 +729,6 @@ class netUImainWindow(Gtk.Window):
         # Connected stat
         self._create_stat_card(stats_bar, "Connected", str(connected_count), "connected")
 
-        # Search bar
-        search_bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-        search_bar.get_style_context().add_class("search-bar")
-        vbox.pack_start(search_bar, False, False, 0)
-
-        self.search_entry = Gtk.SearchEntry()
-        self.search_entry.set_placeholder_text("Search interfaces...")
-        self.search_entry.connect("search-changed", self._on_search_changed)
-        search_bar.pack_start(self.search_entry, True, True, 0)
-
         # Managed-by info bar (shows which network managers are in control)
         managers_bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         managers_bar.get_style_context().add_class("search-bar")
@@ -825,42 +815,13 @@ class netUImainWindow(Gtk.Window):
             self.lbox.add(row)
             return
 
-        # Get search filter
-        search_text = ""
-        if hasattr(self, 'search_entry'):
-            search_text = self.search_entry.get_text().strip().lower()
-
         # Add interface cards
-        matching_count = 0
         for interface in self.interfaces:
-            # Apply search filter
-            if search_text and search_text not in interface.name.lower():
-                continue
-
-            matching_count += 1
             try:
                 self._create_interface_card(interface)
             except Exception as e:
                 logger.error(f"Error creating UI row for {interface.name}: {e}")
                 self._create_error_row(interface.name, str(e))
-
-        # Show "no results" message if search filter matches nothing
-        if matching_count == 0 and search_text:
-            empty_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
-            empty_box.get_style_context().add_class("empty-state")
-
-            empty_title = Gtk.Label(label=f"No interfaces matching '{search_text}'")
-            empty_title.get_style_context().add_class("empty-title")
-            empty_box.pack_start(empty_title, False, False, 0)
-
-            empty_subtitle = Gtk.Label(label="Try a different search term or clear the search")
-            empty_subtitle.get_style_context().add_class("empty-subtitle")
-            empty_box.pack_start(empty_subtitle, False, False, 0)
-
-            row = Gtk.ListBoxRow()
-            row.set_activatable(False)
-            row.add(empty_box)
-            self.lbox.add(row)
 
         self.lbox.show_all()
 
@@ -1070,10 +1031,6 @@ class netUImainWindow(Gtk.Window):
         dialog.format_secondary_text("\n".join(lines))
         dialog.run()
         dialog.destroy()
-
-    def _on_search_changed(self, entry: Gtk.SearchEntry) -> None:
-        """Handle search text changes - filter interface list."""
-        self._populate_interface_list()
 
     def _on_refresh_clicked(self, widget: Gtk.Button) -> None:
         """Handle refresh button click - reload all interfaces."""
