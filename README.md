@@ -192,6 +192,31 @@ This will detect NetworkManager or systemd-networkd conflicts and offer to stop 
 ### GUI Mode
 Launch from application menu or run `netui-gtk` from terminal.
 
+The app normally requests root privileges (via `sudo` or `pkexec`) when launched
+from your graphical session. A graphical password prompt will appear.
+
+**Run without root (read-only):**
+
+```bash
+netui-gtk --user
+# or from source
+python3 __main__.py --user
+```
+
+In read-only mode no elevation is requested: the window opens instantly, all
+interface information is visible, but every change control (up/down, connect,
+config, advanced) is disabled and a warning banner is shown. This is also the
+only mode that works over SSH or from scripts where no password prompt exists.
+
+**Troubleshooting the GUI:**
+
+If the window fails to appear or GTK errors with *"Couldn't be initialized"*,
+the process has no display access. That happens when the GUI is launched with
+`pkexec` from an environment where `DISPLAY`/`XAUTHORITY` were unset. Modern
+versions fix this automatically by re-exporting the graphical session variables
+inside the elevated process; if you still hit it, launch with `--user` or:
+`pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY netui-gtk`
+
 The main window displays:
 1. **Header bar** with the NetUI title, subtitle, and a refresh button
 2. **Summary stats bar** - at-a-glance counts of total, up, down, and connected interfaces
@@ -212,6 +237,7 @@ The main window displays:
 ```bash
 netui-gtk --check     # Check system dependencies
 netui-gtk --list      # List network interfaces
+netui-gtk --user      # GUI in read-only mode (no root needed)
 netui-gtk --version   # Show version
 ```
 

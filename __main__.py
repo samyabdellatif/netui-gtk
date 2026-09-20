@@ -80,8 +80,24 @@ def check_root_privileges() -> bool:
     return os.geteuid() == 0
 
 
+def _preserved_env_args() -> list:
+    """Build NAME=VALUE arguments for /usr/bin/env preserving the GUI session.
+
+    pkexec sanitizes the child environment and strips DISPLAY/XAUTHORITY,
+    which makes GTK crash with "Gtk couldn't be initialized".  Re-exporting
+    these variables through the env binary restores the graphical session.
+    """
+    preserved = []
+    for var in ('DISPLAY', 'XAUTHORITY', 'WAYLAND_DISPLAY', 'XDG_RUNTIME_DIR',
+                'DBUS_SESSION_BUS_ADDRESS'):
+        value = os.environ.get(var)
+        if value:
+            preserved.append(f"{var}={value}")
+    return preserved
+
+
 def restart_with_sudo() -> None:
-    """Restart the application with sudo privileges."""
+    """Restart the application with sudo privileges, preserving the GUI session."""
     try:
         # Build the command to run
         if getattr(sys, 'frozen', False):
@@ -93,19 +109,23 @@ def restart_with_sudo() -> None:
 
         # Check for privilege escalation tools
         if shutil.which('sudo'):
+            # sudo -E preserves the caller environment (DISPLAY, XAUTHORITY, ...)
             cmd = ['sudo', '-E'] + cmd_base
         elif shutil.which('pkexec'):
-            cmd = ['pkexec'] + cmd_base
+            # pkexec runs /usr/bin/env (with the GUI vars re-exported) which in
+            # turn execs the real command. Without this, root gets no DISPLAY
+            # and GTK crashes before the window can appear.
+            env_bin = shutil.which('env') or '/usr/bin/env'
+            cmd = ['pkexec', env_bin] + _preserved_env_args() + cmd_base
         else:
             print("ERROR: No privilege escalation tool found. Please install sudo or pkexec.")
             print("  sudo: apt install sudo")
             print("  pkexec: apt install policykit-1")
             sys.exit(1)
 
-        print(f"Restarting with elevated privileges...")
+        print("Restarting with elevated privileges...")
         sys.stdout.flush()
 
-        # Run with sudo - the '-E' flag preserves the environment automatically
         result = subprocess.run(cmd)
 
         if result.returncode != 0:
@@ -133,6 +153,9 @@ def main() -> None:
                        help='Check system dependencies and exit')
     parser.add_argument('--list', action='store_true',
                        help='List network interfaces and exit')
+    parser.add_argument('--user', action='store_true',
+                       help='Run in READ-ONLY mode WITHOUT root privileges '
+                            '(no elevation dialog, changes are disabled)')
     args = parser.parse_args()
 
     # Handle --check flag
@@ -172,15 +195,30 @@ def main() -> None:
         print("\nCannot continue without required dependencies.")
         sys.exit(1)
 
-    # Check if running with root privileges
-    if not check_root_privileges():
-        print("This application requires root privileges to manage network interfaces.")
-        print("Requesting sudo permissions...")
+    # Decide privilege mode
+    readonly = args.user
+    if not readonly and not check_root_privileges():
+        print("This application normally requires root privileges to manage network interfaces.")
+        print("Requesting elevated permissions...")
         restart_with_sudo()
         # restart_with_sudo only returns on failure
         sys.exit(1)
 
-    print("Running with root privileges.")
+    if check_root_privileges():
+        print("Running with root privileges.")
+    else:
+        print("Running in READ-ONLY mode (use --user to run without root).")
+
+    # Initialize GTK up front so we fail gracefully (no traceback) when the
+    # process has no display access (e.g. pkexec stripped DISPLAY/XAUTHORITY).
+    # NOTE: Gtk.init_check() returns a (success, argv) tuple, not a bool.
+    gtk_ok, _ = Gtk.init_check()
+    if not gtk_ok:
+        print("ERROR: Could not initialize GTK (no display available).")
+        print("  - Make sure you are in a graphical session.")
+        print("  - Check that DISPLAY (X11) or WAYLAND_DISPLAY (Wayland) is set.")
+        print("  - If you only need interface info, use: python3 __main__.py --list")
+        sys.exit(1)
 
     # Set the application icon (bypasses icon-theme lookup that can crash)
     set_app_icon()
@@ -189,7 +227,7 @@ def main() -> None:
     check_network_manager()
 
     # Create and run the main window
-    win = netUImainWindow()
+    win = netUImainWindow(readonly=readonly)
     win.connect("destroy", Gtk.main_quit)
     print("GUI window should now be visible!")
     win.show_all()

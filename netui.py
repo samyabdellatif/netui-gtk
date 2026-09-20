@@ -433,8 +433,11 @@ listbox row:hover {
 class netUImainWindow(Gtk.Window):
     """Main application window for NetUI GTK network interface manager."""
 
-    def __init__(self) -> None:
+    def __init__(self, readonly: bool = False) -> None:
         Gtk.Window.__init__(self, title="NetUI - Network Interface Manager")
+        self.readonly: bool = readonly
+        if readonly:
+            self.set_title("NetUI - Network Interface Manager (Read-Only)")
         self.config: Config = get_config()
 
         # Initialize interface list
@@ -615,7 +618,7 @@ class netUImainWindow(Gtk.Window):
         # Header bar
         header = Gtk.HeaderBar()
         header.set_show_close_button(True)
-        header.props.title = "NetUI"
+        header.props.title = "NetUI" if not self.readonly else "NetUI (Read-Only)"
         header.props.subtitle = "Network Interface Manager"
         self.set_titlebar(header)
 
@@ -641,6 +644,18 @@ class netUImainWindow(Gtk.Window):
         vbox.pack_start(stats_bar, False, False, 0)
         self._stats_bar = stats_bar
         self._stats_bar_labels = {}
+
+        # Read-only mode banner (visible warning that changes are disabled)
+        if self.readonly:
+            ro_bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+            ro_bar.get_style_context().add_class("read-only-bar")
+            ro_label = Gtk.Label(
+                label="⚠ READ-ONLY MODE — running without root privileges. Changes are disabled.",
+                xalign=0
+            )
+            ro_label.get_style_context().add_class("read-only-label")
+            ro_bar.pack_start(ro_label, True, True, 0)
+            vbox.pack_start(ro_bar, False, False, 0)
         
         # Detect installed network managers for stats row
         try:
@@ -730,7 +745,9 @@ class netUImainWindow(Gtk.Window):
         vbox.pack_start(footer, False, False, 0)
 
         footer_label = Gtk.Label(
-            label=f"{total} interface(s) detected | Requires root privileges for changes"
+            label=f"{total} interface(s) detected"
+                  + (" | READ-ONLY mode: run without --user for write access" if self.readonly
+                     else " | Requires root privileges for changes")
         )
         footer.pack_start(footer_label, False, False, 0)
 
@@ -968,6 +985,13 @@ class netUImainWindow(Gtk.Window):
 
         card.pack_start(row3, False, False, 0)
 
+        # Read-only mode: disable all controls that would require root
+        if self.readonly:
+            up_switch.set_sensitive(False)
+            conn_switch.set_sensitive(False)
+            btn_config.set_sensitive(False)
+            btn_advanced.set_sensitive(False)
+
         # Add card to list
         row = Gtk.ListBoxRow()
         row.set_activatable(False)
@@ -1055,6 +1079,9 @@ class netUImainWindow(Gtk.Window):
 
     def on_config_clicked(self, widget: Gtk.Button, interface: Interface) -> None:
         """Handle manual config button click."""
+        if self.readonly:
+            self._show_readonly_warning()
+            return
         try:
             win = ManualConfigWindow(interface=interface)
             win.set_transient_for(self)
@@ -1066,6 +1093,9 @@ class netUImainWindow(Gtk.Window):
 
     def on_advanced_clicked(self, widget: Gtk.Button, interface: Interface) -> None:
         """Handle advanced button click."""
+        if self.readonly:
+            self._show_readonly_warning()
+            return
         try:
             win = AdvancedConfigWindow(interface=interface)
             win.set_transient_for(self)
@@ -1075,8 +1105,21 @@ class netUImainWindow(Gtk.Window):
             logger.error(f"Failed to open advanced window: {e}")
             self.show_error_dialog("Advanced Error", f"Failed to open advanced window: {e}")
 
+    def _show_readonly_warning(self) -> None:
+        """Inform the user that changes are disabled in read-only mode."""
+        self.show_info_dialog(
+            "Read-Only Mode",
+            "You are running without root privileges, so changes are disabled.\n"
+            "Relaunch the application with privileges (or without --user) to modify "
+            "network interfaces."
+        )
+
     def on_UpDown_activated(self, switch: Gtk.Switch, gparam: object, iface_name: str) -> None:
         """Handle interface up/down switch activation."""
+        if self.readonly:
+            switch.set_active(not switch.get_active())  # Revert
+            self._show_readonly_warning()
+            return
         interface = self._find_interface(iface_name)
         if interface is None:
             logger.error(f"Interface not found: {iface_name}")
@@ -1132,6 +1175,10 @@ class netUImainWindow(Gtk.Window):
 
     def on_ConDiscon_activated(self, switch: Gtk.Switch, gparam: object, iface_name: str) -> None:
         """Handle interface connect/disconnect switch activation (non-blocking)."""
+        if self.readonly:
+            switch.set_active(not switch.get_active())  # Revert
+            self._show_readonly_warning()
+            return
         interface = self._find_interface(iface_name)
         if interface is None:
             logger.error(f"Interface not found: {iface_name}")
